@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+hls/build/
+hls/sumcheck_round_prj/
+hls/.Xil/
+*.jou
+*.log

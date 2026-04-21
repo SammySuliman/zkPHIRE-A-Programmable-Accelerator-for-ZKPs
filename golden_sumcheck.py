@@ -352,6 +352,82 @@ def make_figure1_term() -> tuple[MLETable, ...]:
     )
 
 
+def make_boolean_variable_tables() -> tuple[MLETable, MLETable, MLETable]:
+    return (
+        MLETable.from_values([0, 1, 0, 1, 0, 1, 0, 1]),
+        MLETable.from_values([0, 0, 1, 1, 0, 0, 1, 1]),
+        MLETable.from_values([0, 0, 0, 0, 1, 1, 1, 1]),
+    )
+
+
+def assert_expected_round_samples(
+    mles: Sequence[MLETable],
+    challenges: Sequence[int],
+    expected_rounds: Sequence[Sequence[int]],
+    *,
+    label: str,
+) -> tuple[MLETable, ...]:
+    current = tuple(mles)
+    for round_idx, (challenge, expected) in enumerate(
+        zip(challenges, expected_rounds), start=1
+    ):
+        result = assert_round_invariants(
+            current,
+            challenge,
+            label=f"{label}/round{round_idx}",
+        )
+        if result.evaluations != tuple(field(v) for v in expected):
+            raise AssertionError(
+                f"{label}/round{round_idx}: samples {result.evaluations} "
+                f"did not match expected {tuple(expected)}"
+            )
+        current = result.updated_tables
+    return current
+
+
+def assert_spec_regression_targets() -> None:
+    x1, x2, x3 = make_boolean_variable_tables()
+    challenges = (5, 7, 11)
+
+    final_tables = assert_expected_round_samples(
+        (x1, x2, x3),
+        challenges,
+        expected_rounds=(
+            (0, 1, 2, 3),
+            (0, 5, 10, 15),
+            (0, 35, 70, 105),
+        ),
+        label="spec-case-a",
+    )
+    if claim_from_tables(final_tables) != 385:
+        raise AssertionError("spec-case-a: final value did not match 385")
+
+    term_a = (x1, x2)
+    term_b = (x2, x3)
+    expected_rounds = (
+        (1, 3, 5),
+        (0, 11, 22),
+        (35, 42, 49),
+    )
+    for round_idx, (challenge, expected) in enumerate(
+        zip(challenges, expected_rounds), start=1
+    ):
+        samples_a = compute_round_evaluations(term_a)
+        samples_b = compute_round_evaluations(term_b)
+        combined = tuple(mod_add(a, b) for a, b in zip(samples_a, samples_b))
+        if combined != expected:
+            raise AssertionError(
+                f"spec-case-b/round{round_idx}: samples {combined} "
+                f"did not match expected {expected}"
+            )
+        term_a = update_tables(term_a, challenge)
+        term_b = update_tables(term_b, challenge)
+
+    final_value = mod_add(claim_from_tables(term_a), claim_from_tables(term_b))
+    if final_value != 112:
+        raise AssertionError("spec-case-b: final value did not match 112")
+
+
 def run_demo() -> None:
     term = make_figure1_term()
     challenge = 5
@@ -391,6 +467,9 @@ def run_self_tests(seed: int, random_cases_per_degree: int) -> None:
         label="figure1-chain",
     )
     print("PASS deterministic Figure 1 style checks")
+
+    assert_spec_regression_targets()
+    print("PASS SPEC deterministic regression targets")
 
     wrap_term = (
         MLETable.from_values([FIELD_P - 1, 2, FIELD_P - 3, 4]),

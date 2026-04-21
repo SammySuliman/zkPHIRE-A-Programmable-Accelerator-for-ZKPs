@@ -5,6 +5,24 @@
 **Team members:** Sammy Suliman, Jui-Teng Huang, Ashesh Kaji  
 **Topic**: We want to develop a hardware accelerator for one round (or full loop) of the Sum-check protocol over a finite field.
 
+## Current HLS Implementation
+
+The repository now includes a first functional Vitis HLS implementation for one programmable SumCheck round in [`hls/`](hls/). It follows the verification-first flow in [`SPEC.md`](SPEC.md):
+
+```bash
+python3 golden_sumcheck.py --test
+make -C hls test
+```
+
+On a machine with Vitis HLS installed:
+
+```bash
+make -C hls vitis-csim
+make -C hls vitis-csynth
+```
+
+See [`hls/README.md`](hls/README.md) for the stream protocol, host-facing API, testbench coverage, and IP packaging notes.
+
 At a high level, each round does:
 
 1. Fix previous variables  
