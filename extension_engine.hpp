@@ -4,8 +4,6 @@
 #include "types.hpp"
 #include "update_unit.hpp"
 
-const int MAX_SAMPLES = MAX_DEGREE + 1;
-
 inline void extension_engine(bn254_t f0,
                              bn254_t f1,
                              int term_degree,
