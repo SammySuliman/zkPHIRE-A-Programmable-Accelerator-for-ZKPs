@@ -14,7 +14,17 @@ void sumcheck_top(bn254_t mle_inputs[MAX_DEGREE][INITIAL_TABLE_SIZE],
 bool read_next_hex(std::ifstream& file, bn254_t& val) {
     std::string line;
     if (std::getline(file, line)) {
-        // ap_uint constructor handles the "0x" prefix automatically if base is set to 16
+        // 1. Strip any hidden Windows carriage returns (\r)
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        
+        // 2. Strip the "0x" prefix so we only feed raw hex digits to the parser
+        if (line.size() >= 2 && line.substr(0, 2) == "0x") {
+            line = line.substr(2);
+        }
+        
+        // 3. Parse as pure base-16
         val = bn254_t(line.c_str(), 16);
         return true;
     }
@@ -23,7 +33,7 @@ bool read_next_hex(std::ifstream& file, bn254_t& val) {
 
 int main() {
     std::cout << "========================================" << std::endl;
-    case "Starting zkPHIRE SumCheck HLS Testbench..." << std::endl;
+    std::cout << "Starting zkPHIRE SumCheck HLS Testbench..." << std::endl;
     std::cout << "========================================" << std::endl;
 
     // ---------------------------------------------------------
