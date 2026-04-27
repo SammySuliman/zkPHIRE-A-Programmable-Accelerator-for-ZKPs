@@ -28,7 +28,7 @@ static const field_elem_t FIELD_P = field_elem_t(
 
 // Maximum term degree (number of constituent MLE factors in one product term).
 // The HLS core produces degree+1 round samples per invocation.
-static const int MAX_DEGREE = 6;
+static const int MAX_DEGREE = 5;
 static const int MAX_SAMPLES = MAX_DEGREE + 1;  // d+1 samples
 
 // Maximum MLE table size (must be a power of two). The one-round core
