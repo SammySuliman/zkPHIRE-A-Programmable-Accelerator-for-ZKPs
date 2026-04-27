@@ -4,27 +4,29 @@
 #include "types.hpp"
 
 // ---------------------------------------------------------------------------
-// BN254 scalar field arithmetic — bit-exact with the Python golden model
+// BN254 scalar field arithmetic
 //
-// Field prime (BN254 curve order):
-//   p = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001
+// DSP optimization strategy:
+//   mod_mul uses ap_uint % but with BIND_OP to force a radix-2 divider
+//   (fewer DSPs than default radix-4) plus ALLOCATION to share instances.
 //
-// Phase 3 strategy: use Vitis HLS's built-in ap_uint % operator which
-// synthesizes to a sequential divider (fewer DSPs than full parallel Barrett).
-// DSP reduction comes from sharing the modular multiplier across loop
-// iterations via PIPELINE (not UNROLL), and limiting allocation.
+//   The modulo operator on 512-bit numbers is the bottleneck.
+//   Using BIND_OP op=urem impl=dsp reduces to a fixed-function divider
+//   rather than synthesizing one from scratch each time.
 // ---------------------------------------------------------------------------
 
 static const ap_uint<512> FIELD_P_512 = ap_uint<512>(
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"
 );
 
-// Shared modular multiplier — use ALLOCATION to limit instances
 static field_elem_t mod_mul(field_elem_t a, field_elem_t b) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION instances=mul limit=1 function
+#pragma HLS ALLOCATION instances=urem limit=1 function
     ap_uint<512> prod = ap_uint<512>(a) * b;
-    return field_elem_t(prod % FIELD_P_512);
+    ap_uint<512> reduced;
+#pragma HLS BIND_OP variable=reduced op=urem impl=fabric
+    reduced = prod % FIELD_P_512;
+    return field_elem_t(reduced);
 }
 
 static field_elem_t mod_add(field_elem_t a, field_elem_t b) {
