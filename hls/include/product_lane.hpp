@@ -7,10 +7,9 @@
 // ---------------------------------------------------------------------------
 // product_lane: form the per-point product across all MLE extension factors
 //
-// For one pair and one evaluation point x in {0..d}:
-//   product[x] = prod_{mle_idx=0}^{degree-1} extensions[mle_idx][x]
-//
-// This is the per-term product that zkPHIRE computes in each product lane.
+// Phase 3: uses PIPELINE instead of UNROLL so that the single shared
+// modular multiplier (via HLS ALLOCATION) is reused across cycles.
+// The MLE factor loop is pipelined; the point loop is unrolled (d ≤ 6).
 // ---------------------------------------------------------------------------
 
 static void compute_lane_products(
@@ -28,7 +27,7 @@ static void compute_lane_products(
     // Multiply across MLE tables for each evaluation point
     mle_loop:
     for (int mle_idx = 0; mle_idx < degree; ++mle_idx) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=1
         point_loop:
         for (int x = 0; x <= degree; ++x) {
 #pragma HLS UNROLL

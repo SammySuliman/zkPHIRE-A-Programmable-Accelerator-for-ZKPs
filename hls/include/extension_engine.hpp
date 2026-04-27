@@ -7,14 +7,9 @@
 // ---------------------------------------------------------------------------
 // extension_engine: extend one MLE pair to degree+1 point evaluations
 //
-// For a pair (f0, f1) and configured degree d:
-//   extend_pair(f0, f1, d) -> [value at x=0, 1, ..., d]
-//
-// Each evaluation uses the shared affine rule:
-//   value_at_x = f0*(1-x) + f1*x = f0 + (f1-f0)*x
-//
-// The extension uses integer points 0..d (not the verifier challenge).
-// As d <= MAX_DEGREE (=6) for the first milestone, we unroll completely.
+// Phase 3: extension uses PIPELINE (not UNROLL) on the point loop so
+// the shared multiplier is reused across evaluation points.
+// For d ≤ 6 this is latency-tolerant.
 // ---------------------------------------------------------------------------
 
 static void extend_pair(
@@ -28,15 +23,11 @@ static void extend_pair(
 
     extend_loop:
     for (int x = 0; x <= degree; ++x) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=1
         out[x] = mod_add(f0, mod_mul(diff, field_elem_t(x)));
     }
 }
 
-// ---------------------------------------------------------------------------
-// Extend all MLE tables' current pair:
-//   extensions[mle_idx][x] = eval at x for that table's pair
-// ---------------------------------------------------------------------------
 static void extend_all_for_pair(
     const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
     int pair_idx,
@@ -45,7 +36,7 @@ static void extend_all_for_pair(
 ) {
     mle_loop:
     for (int mle_idx = 0; mle_idx < degree; ++mle_idx) {
-#pragma HLS UNROLL
+#pragma HLS PIPELINE II=1
         const field_elem_t* table = tables[mle_idx];
         field_elem_t f0 = table[2 * pair_idx];
         field_elem_t f1 = table[2 * pair_idx + 1];
