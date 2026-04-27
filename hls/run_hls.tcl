@@ -6,12 +6,16 @@
 set script_dir [file dirname [file normalize [info script]]]
 
 # ==================================================================
-# Solution 1: sumcheck_round_array — C-sim + synthesis (BRAM API)
+# Project setup — add sources at project level so all solutions share them
 # ==================================================================
 open_project -reset zkphire_sumcheck
-set_top sumcheck_round_array
 add_files -cflags "-I$script_dir" src/sumcheck_top.cpp
 add_files -tb -cflags "-I$script_dir" testbench/tb_sumcheck.cpp
+
+# ==================================================================
+# Solution 1: sumcheck_round_array — C-sim + synthesis (BRAM API)
+# ==================================================================
+set_top sumcheck_round_array
 
 open_solution -reset "solution1"
 set_part {xc7z020clg400-1}
