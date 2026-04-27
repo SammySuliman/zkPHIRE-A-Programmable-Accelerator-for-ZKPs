@@ -2,6 +2,7 @@
 #define ZKPHIRE_PRODUCT_LANE_HPP
 
 #include "types.hpp"
+#include "field_arithmetic.hpp"
 
 // ---------------------------------------------------------------------------
 // product_lane: form the per-point product across all MLE extension factors
@@ -13,9 +14,9 @@
 // ---------------------------------------------------------------------------
 
 static void compute_lane_products(
-    field_elem_t extensions[MAX_DEGREE][MAX_DEGREE + 1],
+    field_elem_t extensions[MAX_DEGREE][MAX_SAMPLES],
     int degree,
-    field_elem_t lane_products[MAX_DEGREE + 1]
+    field_elem_t lane_products[MAX_SAMPLES]
 ) {
     // Initialize lane products to 1
     init_loop:

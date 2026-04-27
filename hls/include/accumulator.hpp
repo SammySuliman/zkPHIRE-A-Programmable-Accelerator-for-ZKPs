@@ -2,6 +2,7 @@
 #define ZKPHIRE_ACCUMULATOR_HPP
 
 #include "types.hpp"
+#include "field_arithmetic.hpp"
 
 // ---------------------------------------------------------------------------
 // accumulator: accumulate per-pair products into the round-sample registers
@@ -17,7 +18,7 @@
 // Initialize round-sample accumulators to zero
 static void accum_init(
     int degree,
-    field_elem_t round_samples[MAX_DEGREE + 1]
+    field_elem_t round_samples[MAX_SAMPLES]
 ) {
     init_loop:
     for (int x = 0; x <= degree; ++x) {
@@ -28,9 +29,9 @@ static void accum_init(
 
 // Accumulate one set of per-point lane products into the round samples
 static void accum_add(
-    field_elem_t lane_products[MAX_DEGREE + 1],
+    field_elem_t lane_products[MAX_SAMPLES],
     int degree,
-    field_elem_t round_samples[MAX_DEGREE + 1]
+    field_elem_t round_samples[MAX_SAMPLES]
 ) {
 #pragma HLS INLINE
     acc_loop:

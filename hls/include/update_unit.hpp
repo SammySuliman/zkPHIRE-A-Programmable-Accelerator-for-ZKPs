@@ -2,6 +2,7 @@
 #define ZKPHIRE_UPDATE_UNIT_HPP
 
 #include "types.hpp"
+#include "field_arithmetic.hpp"
 
 // ---------------------------------------------------------------------------
 // update_unit: affine MLE update at the verifier challenge r
@@ -9,7 +10,7 @@
 // For one pair (f0, f1) from a constituent MLE table:
 //   update(f0, f1, r) = f0*(1-r) + f1*r
 //
-// Uses the shared affine_line_eval from types.hpp.
+// Uses the shared affine_line_eval from field_arithmetic.hpp.
 // ---------------------------------------------------------------------------
 
 static field_elem_t update(field_elem_t f0, field_elem_t f1, field_elem_t r) {

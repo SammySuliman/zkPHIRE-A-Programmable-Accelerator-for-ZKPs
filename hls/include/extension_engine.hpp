@@ -2,6 +2,7 @@
 #define ZKPHIRE_EXTENSION_ENGINE_HPP
 
 #include "types.hpp"
+#include "field_arithmetic.hpp"
 
 // ---------------------------------------------------------------------------
 // extension_engine: extend one MLE pair to degree+1 point evaluations
@@ -20,12 +21,11 @@ static void extend_pair(
     field_elem_t f0,
     field_elem_t f1,
     int degree,
-    field_elem_t out[MAX_DEGREE + 1]
+    field_elem_t out[MAX_SAMPLES]
 ) {
 #pragma HLS INLINE
     field_elem_t diff = mod_sub(f1, f0);
 
-    // Unrolled: degree <= MAX_DEGREE ensures bounded loop
     extend_loop:
     for (int x = 0; x <= degree; ++x) {
 #pragma HLS UNROLL
@@ -35,19 +35,14 @@ static void extend_pair(
 
 // ---------------------------------------------------------------------------
 // Extend all MLE tables' current pair:
-//   all_extensions[mle_idx][pair_idx][x] = eval at x for that table's pair
-//
-// This produces degree parallel extensions for each of 'degree' MLE tables,
-// one pair at a time.
+//   extensions[mle_idx][x] = eval at x for that table's pair
 // ---------------------------------------------------------------------------
-
 static void extend_all_for_pair(
     const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
     int pair_idx,
     int degree,
-    field_elem_t extensions[MAX_DEGREE][MAX_DEGREE + 1]
+    field_elem_t extensions[MAX_DEGREE][MAX_SAMPLES]
 ) {
-    // For each MLE table, extend its current pair
     mle_loop:
     for (int mle_idx = 0; mle_idx < degree; ++mle_idx) {
 #pragma HLS UNROLL
