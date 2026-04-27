@@ -57,6 +57,13 @@ inline field_t field_from_u64s(
     (void)limb2;
     (void)limb3;
     return limb0;
+#elif ZKPHIRE_HAS_VITIS_TYPES
+    field_t value = 0;
+    value.range(63, 0) = limb0;
+    value.range(127, 64) = limb1;
+    value.range(191, 128) = limb2;
+    value.range(255, 192) = limb3;
+    return value;
 #else
     field_t value = limb3;
     value <<= 64;
@@ -97,25 +104,20 @@ inline field_t field_from_u32(std::uint32_t value) {
 }
 
 inline field_t field_add(field_t a, field_t b) {
-    const field_t p = field_modulus();
-#if ZKPHIRE_HAS_SOFTWARE64_TYPES
+    const wide_field_t p = wide_field_t(field_modulus());
     wide_field_t sum = wide_field_t(a) + wide_field_t(b);
-    if (sum >= wide_field_t(p)) {
-        sum -= wide_field_t(p);
-    }
-    return field_t(sum);
-#else
-    field_t sum = a + b;
     if (sum >= p) {
         sum -= p;
     }
-    return sum;
-#endif
+    return field_t(sum);
 }
 
 inline field_t field_sub(field_t a, field_t b) {
     const field_t p = field_modulus();
-    return (a >= b) ? field_t(a - b) : field_t(p - (b - a));
+    if (a >= b) {
+        return field_t(a - b);
+    }
+    return field_t(wide_field_t(a) + wide_field_t(p) - wide_field_t(b));
 }
 
 inline field_t field_mul(field_t a, field_t b) {
