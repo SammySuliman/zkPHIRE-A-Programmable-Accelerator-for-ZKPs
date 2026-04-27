@@ -21,12 +21,8 @@ static const ap_uint<512> FIELD_P_512 = ap_uint<512>(
 
 static field_elem_t mod_mul(field_elem_t a, field_elem_t b) {
 #pragma HLS INLINE off
-#pragma HLS ALLOCATION instances=urem limit=1 function
     ap_uint<512> prod = ap_uint<512>(a) * b;
-    ap_uint<512> reduced;
-#pragma HLS BIND_OP variable=reduced op=urem impl=fabric
-    reduced = prod % FIELD_P_512;
-    return field_elem_t(reduced);
+    return field_elem_t(prod % FIELD_P_512);
 }
 
 static field_elem_t mod_add(field_elem_t a, field_elem_t b) {
