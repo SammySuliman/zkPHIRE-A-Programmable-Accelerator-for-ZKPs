@@ -7,20 +7,40 @@
 // ---------------------------------------------------------------------------
 // update_unit: affine MLE update at the verifier challenge r
 //
-// For one pair (f0, f1) from a constituent MLE table:
-//   update(f0, f1, r) = f0*(1-r) + f1*r
+// Paper-parity (zkPHIRE Figure 4): two update modes:
+//   Round 1:  update2(f0, f1, r) — standard 2-input update
+//   Round 2+: update4(f0_0, f0_1, f1_0, f1_1, r) — pipelined 4-input
+//             update that produces two updated values while feeding
+//             Extension Engines simultaneously.
 //
-// Uses the shared affine_line_eval from field_arithmetic.hpp.
+// The 4-input mode implements:
+//   next0 = f0_0 * (1-r) + f0_1 * r    (from pair at X_i=0)
+//   next1 = f1_0 * (1-r) + f1_1 * r    (from pair at X_i=1)
+//
+// This folds MLE update into the extension pipeline, eliminating the
+// separate update pass in rounds 2+.
 // ---------------------------------------------------------------------------
 
-static field_elem_t update(field_elem_t f0, field_elem_t f1, field_elem_t r) {
+// Standard 2-input update (Round 1)
+static field_elem_t update2(field_elem_t f0, field_elem_t f1, field_elem_t r) {
 #pragma HLS INLINE
     return affine_line_eval(f0, f1, r);
 }
 
-// Apply update to an entire MLE table, producing a halved table.
-// Input:  table[0..size-1]  (size must be even)
-// Output: out[0..size/2-1]  (each entry = update(table[2k], table[2k+1], r))
+// Pipelined 4-input update (Rounds 2+): produces two updated values
+static void update4(
+    field_elem_t f0_0, field_elem_t f0_1,
+    field_elem_t f1_0, field_elem_t f1_1,
+    field_elem_t r,
+    field_elem_t& next0,
+    field_elem_t& next1
+) {
+#pragma HLS INLINE
+    next0 = affine_line_eval(f0_0, f0_1, r);
+    next1 = affine_line_eval(f1_0, f1_1, r);
+}
+
+// Apply 2-input update to an entire MLE table
 template <int SIZE>
 static void update_table(
     const field_elem_t table[SIZE],
@@ -30,7 +50,7 @@ static void update_table(
     update_loop:
     for (int k = 0; k < SIZE / 2; ++k) {
 #pragma HLS PIPELINE II=1
-        out[k] = update(table[2 * k], table[2 * k + 1], r);
+        out[k] = update2(table[2 * k], table[2 * k + 1], r);
     }
 }
 

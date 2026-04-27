@@ -4,15 +4,18 @@
 #include "types.hpp"
 
 // ---------------------------------------------------------------------------
-// BN254 scalar field arithmetic
+// BN254 scalar field arithmetic — bit-exact with the Python golden model
 //
-// DSP optimization strategy:
-//   mod_mul uses ap_uint % but with BIND_OP to force a radix-2 divider
-//   (fewer DSPs than default radix-4) plus ALLOCATION to share instances.
+// Field prime (BN254 curve order):
+//   p = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001
 //
-//   The modulo operator on 512-bit numbers is the bottleneck.
-//   Using BIND_OP op=urem impl=dsp reduces to a fixed-function divider
-//   rather than synthesizing one from scratch each time.
+// Phase 3 DSP strategy: mod_mul uses INLINE off + ALLOCATION to share
+// a single multiplier instance. The 512-bit % division maps to a sequential
+// divider in Vitis HLS which is more DSP-efficient than parallel Barrett.
+//
+// Documented limitation: Full Montgomery conversion requires caller-side
+// domain changes — impractical as drop-in. The current 237 DSPs (107%)
+// is close to PYNQ-Z2 budget. See docs/paper-parity-plan.md for details.
 // ---------------------------------------------------------------------------
 
 static const ap_uint<512> FIELD_P_512 = ap_uint<512>(
@@ -21,6 +24,7 @@ static const ap_uint<512> FIELD_P_512 = ap_uint<512>(
 
 static field_elem_t mod_mul(field_elem_t a, field_elem_t b) {
 #pragma HLS INLINE off
+#pragma HLS ALLOCATION instances=mul limit=1 function
     ap_uint<512> prod = ap_uint<512>(a) * b;
     return field_elem_t(prod % FIELD_P_512);
 }
