@@ -4,7 +4,10 @@
 #include <cmath>
 
 #include "include/types.hpp"
-#include "src/sumcheck_top.cpp"
+#include "include/field_arithmetic.hpp"
+
+// sumcheck_round_array / sumcheck_round_axi are compiled separately via
+// src/sumcheck_top.cpp — only declare prototypes here.
 
 // ---------------------------------------------------------------------------
 // Testbench: verifies bit-exact match between sumcheck_top and golden model

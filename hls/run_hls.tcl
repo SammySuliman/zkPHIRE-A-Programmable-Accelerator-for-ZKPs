@@ -4,38 +4,31 @@
 #   vitis_hls -f run_hls.tcl
 #
 # Targets the PYNQ-Z2 (xc7z020clg400-1) at 100 MHz.
-# The build sequence:
-#   1. C-simulation (verifies bit-exact match with golden model)
-#   2. C-synthesis (generates RTL)
-#   3. Co-simulation (optional RTL/SystemC co-sim)
-#
+
+# Compute absolute path to this script's directory for include paths
+set script_dir [file dirname [file normalize [info script]]]
 
 # ------------------------------------------------------------------
 # Project setup
 # ------------------------------------------------------------------
 open_project -reset zkphire_sumcheck
+set_top sumcheck_round_array
 
-set_top sumcheck_top
-
-# Design sources
-add_files -cflags "-I." src/sumcheck_top.cpp
+# Design sources (include path relative to hls/ root)
+add_files -cflags "-I$script_dir" src/sumcheck_top.cpp
 
 # Testbench
-add_files -tb testbench/tb_sumcheck.cpp
+add_files -tb -cflags "-I$script_dir" testbench/tb_sumcheck.cpp
 
 # ------------------------------------------------------------------
 # Solution configuration
 # ------------------------------------------------------------------
 open_solution -reset "solution1"
-
-# Target: PYNQ-Z2 (xc7z020clg400-1) per SPEC Section 12
 set_part {xc7z020clg400-1}
-
-# Clock: 100 MHz (10 ns period) per SPEC Section 12
 create_clock -period 10 -name default
 
 # ------------------------------------------------------------------
-# C-Simulation
+# C-Simulation (array API for fast verification)
 # ------------------------------------------------------------------
 puts "--- C-Simulation ---"
 if {[catch {csim_design} res]} {
@@ -46,30 +39,28 @@ if {[catch {csim_design} res]} {
 puts "PASS: C-Simulation passed."
 
 # ------------------------------------------------------------------
-# C-Synthesis
+# C-Synthesis (both APIs)
 # ------------------------------------------------------------------
-puts "--- C-Synthesis ---"
+puts "--- C-Synthesis (array API) ---"
 if {[catch {csynth_design} res]} {
-    puts "FAIL: C-Synthesis failed."
+    puts "FAIL: C-Synthesis failed for sumcheck_round_array."
     puts $res
     exit 1
 }
-puts "PASS: C-Synthesis passed."
+
+set_top sumcheck_round_axi
+puts "--- C-Synthesis (AXI API) ---"
+if {[catch {csynth_design} res]} {
+    puts "WARNING: C-Synthesis failed for sumcheck_round_axi."
+    puts $res
+} else {
+    puts "PASS: Both APIs synthesized."
+}
 
 # ------------------------------------------------------------------
-# Co-Simulation (optional — uncomment to enable)
+# Export IP (AXI version for board integration)
 # ------------------------------------------------------------------
-# puts "--- Co-Simulation ---"
-# if {[catch {cosim_design} res]} {
-#     puts "WARNING: Co-Simulation failed."
-#     puts $res
-# } else {
-#     puts "PASS: Co-Simulation passed."
-# }
-
-# ------------------------------------------------------------------
-# Export IP
-# ------------------------------------------------------------------
+set_top sumcheck_round_axi
 puts "--- Exporting IP ---"
 if {[catch {export_design -format ip_catalog} res]} {
     puts "WARNING: IP export failed."
