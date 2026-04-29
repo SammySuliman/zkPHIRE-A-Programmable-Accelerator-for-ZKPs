@@ -108,7 +108,7 @@ static field_elem_t to_montgomery(field_elem_t x) {
 
 // R^{-1} mod p (precomputed, for from_montgomery conversion)
 static const field_elem_t R_INV = field_elem_t(
-    "0x20af3e125bd0173c8c687083f0277cccf913bb9755257b1d6e0ed9ee225d4e19"
+    "0x15ebf95182c5551cc8260de4aeb85d5d090ef5a9e111ec87dc5ba0056db1194e"
 );
 
 static field_elem_t from_montgomery(field_elem_t x_mont) {
