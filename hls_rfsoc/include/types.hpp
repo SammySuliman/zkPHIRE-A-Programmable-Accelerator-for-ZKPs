@@ -38,6 +38,6 @@ static const status_t STATUS_BAD_CHALLENGE = 3;
 
 // AXI stream width
 static const int DATA_WIDTH = FIELD_BITS;
-using axis_word_t = ap_axis<DATA_WIDTH, 0, 0, 0>;
+using axis_word_t = hls::axis<ap_uint<DATA_WIDTH>, 0, 0, 0>;
 
 #endif // ZKPHIRE_TYPES_HPP
