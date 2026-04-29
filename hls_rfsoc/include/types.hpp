@@ -2,6 +2,7 @@
 #define ZKPHIRE_TYPES_HPP
 
 #include <ap_int.h>
+#include <ap_axi_sdata.h>
 #include <hls_stream.h>
 
 // ---------------------------------------------------------------------------
