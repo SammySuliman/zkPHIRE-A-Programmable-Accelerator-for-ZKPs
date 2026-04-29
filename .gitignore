@@ -2,3 +2,4 @@
 __pycache__/
 hls/data/
 hls/__pycache__/
+.DS_Store
