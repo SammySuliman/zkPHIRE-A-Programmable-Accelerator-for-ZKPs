@@ -4,15 +4,11 @@
 #include "types.hpp"
 #include "field_arithmetic.hpp"
 
-// ---------------------------------------------------------------------------
-// Accumulator — accumulate per-pair products into round-sample registers
-// ---------------------------------------------------------------------------
-
 static void accum_init(int degree, field_elem_t round_samples[MAX_SAMPLES]) {
     init_loop:
     for (int x = 0; x <= degree; ++x) {
 #pragma HLS PIPELINE II=1
-        round_samples[x] = to_montgomery(field_elem_t(0));
+        round_samples[x] = field_elem_t(0);
     }
 }
 
@@ -29,4 +25,4 @@ static void accum_add(
     }
 }
 
-#endif // ZKPHIRE_ACCUMULATOR_HPP
+#endif

@@ -4,14 +4,6 @@
 #include "types.hpp"
 #include "field_arithmetic.hpp"
 
-// ---------------------------------------------------------------------------
-// Extension Engine — extend MLE pair to d+1 point evaluations
-//
-// For a pair (f0, f1) and degree d, produce values at x = 0, 1, ..., d
-// using the affine rule: eval_at_x = f0 + (f1-f0) * x
-// All values in Montgomery domain.
-// ---------------------------------------------------------------------------
-
 static void extend_pair(
     field_elem_t f0,
     field_elem_t f1,
@@ -24,12 +16,10 @@ static void extend_pair(
     extend_loop:
     for (int x = 0; x <= degree; ++x) {
 #pragma HLS PIPELINE II=1
-        field_elem_t z = to_montgomery(field_elem_t(x));
-        out[x] = mod_add(f0, mod_mul(diff, z));
+        out[x] = mod_add(f0, mod_mul(diff, field_elem_t(x)));
     }
 }
 
-// Extend all MLE tables for one pair index
 static void extend_all_for_pair(
     const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
     int pair_idx,
@@ -45,4 +35,4 @@ static void extend_all_for_pair(
     }
 }
 
-#endif // ZKPHIRE_EXTENSION_ENGINE_HPP
+#endif
