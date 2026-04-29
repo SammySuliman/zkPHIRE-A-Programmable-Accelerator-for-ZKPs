@@ -4,9 +4,7 @@
 #include <cmath>
 
 #include "include/types.hpp"
-#include "include/field_arithmetic.hpp"
-
-// sumcheck_round_array is compiled separately by Vitis HLS from src/sumcheck_top.cpp
+#include "src/sumcheck_top.cpp"
 
 // ---------------------------------------------------------------------------
 // Testbench: verifies bit-exact match between sumcheck_top and golden model
@@ -23,12 +21,10 @@
 // ---------------------------------------------------------------------------
 
 // Prototype
-status_t sumcheck_round_array(
-    const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
-    field_elem_t r,
-    int degree,
-    int size,
-    field_elem_t samples[MAX_SAMPLES],
+void sumcheck_top(
+    field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
+    int degree, int size, field_elem_t r,
+    field_elem_t samples[MAX_DEGREE + 1],
     field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
 );
 
@@ -81,10 +77,10 @@ static bool check_round(
     const char* test_name,
     field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
     int degree, int size, field_elem_t r,
-    field_elem_t expected_samples[MAX_SAMPLES],
+    field_elem_t expected_samples[MAX_DEGREE + 1],
     field_elem_t expected_updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
 ) {
-    field_elem_t samples[MAX_SAMPLES] = {};
+    field_elem_t samples[MAX_DEGREE + 1] = {};
     field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
 
     // Prime the arrays
@@ -95,7 +91,7 @@ static bool check_round(
     }
 
     // Run the hardware model
-    sumcheck_round_array(tables, r, degree, size, samples, updated);
+    sumcheck_top(tables, degree, size, r, samples, updated);
 
     // Verify round samples match
     bool samples_ok = true;
@@ -176,10 +172,10 @@ static bool check_protocol_chain(
 
     bool chain_ok = true;
     for (int rnd = 0; rnd < num_rounds; ++rnd) {
-        field_elem_t samples[MAX_SAMPLES] = {};
+        field_elem_t samples[MAX_DEGREE + 1] = {};
         field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
 
-        sumcheck_round_array(current, challenges[rnd], degree, cur_size, samples, updated);
+        sumcheck_top(current, degree, cur_size, challenges[rnd], samples, updated);
 
         // Simple invariant check for this round
         field_elem_t claim_before = compute_claim(current, degree, cur_size);
@@ -286,7 +282,7 @@ int main() {
 
         // Golden model results for x1*x2*x3, round 1, r=5:
         // s(t) = t => samples [0, 1, 2, 3]
-        field_elem_t expected_samples[MAX_SAMPLES] = {0, 1, 2, 3};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {0, 1, 2, 3};
         // Updated tables (after r=5): each MLE updated via affine rule
         // For MLE x1: pairs (0,0)->0, (0,0)->0, (1,1)->1, (1,1)->1 → [0,0,1,1]
         // Actually: pairs are (0,0), (0,0), (1,1), (1,1)
@@ -326,7 +322,7 @@ int main() {
 
         // r=0: s(t) = t => samples [0,1,2,3] (same polynomial regardless of r)
         // But updated tables change: update(f0,f1,0) = f0 (selects evens)
-        field_elem_t expected_samples[MAX_SAMPLES] = {0, 1, 2, 3};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {0, 1, 2, 3};
         field_elem_t expected_updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
         for (int i = 0; i < 4; ++i) {
             expected_updated[0][i] = tables[0][2*i];  // even entries
@@ -349,7 +345,7 @@ int main() {
         int degree, size;
         init_case_a_monomial(tables, degree, size);
 
-        field_elem_t expected_samples[MAX_SAMPLES] = {0, 1, 2, 3};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {0, 1, 2, 3};
         field_elem_t expected_updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
         for (int i = 0; i < 4; ++i) {
             expected_updated[0][i] = tables[0][2*i + 1];  // odd entries
@@ -406,7 +402,7 @@ int main() {
         }
 
         // Golden: samples = [1, 1, 1]
-        field_elem_t expected_samples[MAX_SAMPLES] = {1, 1, 1};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {1, 1, 1};
 
         // Updated: x1=[0,0,1,1], x2=[0,1,0,1]
         field_elem_t expected_updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
@@ -437,7 +433,7 @@ int main() {
         }
 
         // Golden: samples = [0, 2, 4]
-        field_elem_t expected_samples[MAX_SAMPLES] = {0, 2, 4};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {0, 2, 4};
 
         // Updated: x2=[0,1,0,1], x3=[5,5,5,5]
         field_elem_t expected_updated[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
@@ -492,7 +488,7 @@ int main() {
 
         // Use the software reference to compute expected values
         // (this duplicates the golden model logic at testbench level)
-        field_elem_t expected_samples[MAX_SAMPLES] = {};
+        field_elem_t expected_samples[MAX_DEGREE + 1] = {};
         for (int x_val = 0; x_val <= degree; ++x_val) {
             field_elem_t total = field_elem_t(0);
             for (int k = 0; k < size / 2; ++k) {
@@ -552,13 +548,13 @@ int main() {
             tables2[1][i] = mle_x3[i];
         }
 
-        field_elem_t samples1[MAX_SAMPLES] = {};
-        field_elem_t samples2[MAX_SAMPLES] = {};
+        field_elem_t samples1[MAX_DEGREE + 1] = {};
+        field_elem_t samples2[MAX_DEGREE + 1] = {};
         field_elem_t updated1[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
         field_elem_t updated2[MAX_DEGREE][MAX_TABLE_SIZE / 2] = {};
 
-        sumcheck_round_array(tables1, field_elem_t(5), 2, 8, samples1, updated1);
-        sumcheck_round_array(tables2, field_elem_t(5), 2, 8, samples2, updated2);
+        sumcheck_top(tables1, 2, 8, field_elem_t(5), samples1, updated1);
+        sumcheck_top(tables2, 2, 8, field_elem_t(5), samples2, updated2);
 
         // Accumulate: s_combined[x] = s1[x] + s2[x]
         field_elem_t combined[3] = {};

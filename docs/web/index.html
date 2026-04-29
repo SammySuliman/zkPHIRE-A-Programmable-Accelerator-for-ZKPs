@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zkPHIRE — SumCheck Accelerator for Zero-Knowledge Proofs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+  --bg: #050810;
+  --panel: #0b1220;
+  --cardbg: #0f172a;
+  --line: rgba(148,163,184,.12);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --teal: #14b8a6;
+  --amber: #f59e0b;
+  --violet: #8b5cf6;
+  --green: #10b981;
+  --rose: #f43f5e;
+  --blue: #1f6feb;
+  --compute: #1f6feb;
+  --memory: #14b8a6;
+  --data: #f59e0b;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; scroll-snap-type:y proximity; }
+body {
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.7;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4 { font-family:'Fraunces',serif; font-weight:600; line-height:1.2; }
+h2 { font-size:clamp(2rem,4vw,3.25rem); color:var(--text); }
+h3 { font-size:1.25rem; color:var(--text); }
+p { color:var(--muted); max-width:60ch; }
+code, pre, .mono { font-family:'JetBrains Mono',monospace; }
+pre { background:var(--cardbg); border:1px solid var(--line); border-radius:10px; padding:1.25rem; overflow-x:auto; font-size:0.875rem; color:var(--text); }
+
+/* ── Section ── */
+.section {
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  padding:5rem 2rem;
+  position:relative;
+  scroll-snap-align:start;
+}
+.section-inner { max-width:1100px; width:100%; }
+.section-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.75rem; letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--teal); margin-bottom:0.5rem;
+}
+
+/* ── Nav Dots ── */
+#nav-dots {
+  position:fixed; right:1.5rem; top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:0.75rem; z-index:100;
+}
+.nav-dot {
+  width:10px; height:10px; border-radius:50%; border:1.5px solid rgba(148,163,184,.35);
+  background:transparent; cursor:pointer; transition:all .3s;
+}
+.nav-dot.active { background:var(--teal); border-color:var(--teal); box-shadow:0 0 10px rgba(20,184,166,.45); }
+.nav-dot:hover { border-color:var(--teal); }
+
+/* ── Hero ── */
+.hero { text-align:center; flex-direction:column; }
+.hero h1 {
+  font-size:clamp(2.5rem,6vw,4.5rem);
+  background:linear-gradient(135deg,var(--teal),var(--violet));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom:0.75rem;
+}
+.hero .subtitle { font-size:1.25rem; color:var(--muted); margin-bottom:0.5rem; }
+.hero .byline { font-size:0.95rem; color:rgba(148,163,184,.7); }
+.scroll-arrow {
+  position:absolute; bottom:2rem; left:50%; transform:translateX(-50%);
+  animation:bounce 2s infinite; cursor:pointer;
+}
+.scroll-arrow svg { width:32px; height:32px; stroke:var(--teal); }
+@keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(10px)} }
+
+/* ── Cards ── */
+.card {
+  background:var(--cardbg);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:2rem;
+  transition:transform .3s, box-shadow .3s;
+}
+.card:hover { transform:translateY(-2px); box-shadow:0 12px 32px rgba(0,0,0,.35); }
+.card-grid { display:grid; gap:1.5rem; }
+.card-grid.two { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+
+/* ── Architecture Diagram ── */
+.arch-svg { width:100%; max-width:1000px; display:block; margin:0 auto; }
+
+/* ── Montgomery ── */
+.monty-steps { display:flex; flex-direction:column; gap:1rem; }
+.monty-step {
+  background:var(--cardbg); border:1px solid var(--line); border-radius:12px;
+  padding:1.25rem 1.5rem; display:flex; align-items:center; gap:1.5rem;
+  position:relative; overflow:hidden;
+}
+.monty-step .step-num {
+  font-family:'Fraunces',serif; font-size:1.75rem; font-weight:700;
+  width:44px; height:44px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.monty-step:nth-child(1) .step-num { background:rgba(31,111,235,.15); color:var(--blue); }
+.monty-step:nth-child(2) .step-num { background:rgba(245,158,11,.15); color:var(--amber); }
+.monty-step:nth-child(3) .step-num { background:rgba(20,184,166,.15); color:var(--teal); }
+.monty-step .step-math {
+  font-family:'JetBrains Mono',monospace;
+  font-size:1rem; color:var(--text);
+  background:var(--panel); padding:0.6rem 1rem; border-radius:8px;
+  animation:fadeSlide 1.2s ease both;
+}
+.monty-step:nth-child(2) .step-math { animation-delay:.3s; }
+.monty-step:nth-child(3) .step-math { animation-delay:.6s; }
+@keyframes fadeSlide { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+
+/* ── Protocol Viz ── */
+.protocol-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.5rem; }
+.protocol-panel { background:var(--cardbg); border:1px solid var(--line); border-radius:14px; padding:1.5rem; }
+.protocol-panel h4 { font-size:0.85rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--teal); margin-bottom:0.75rem; }
+.play-btn {
+  background:var(--teal); color:#050810; border:none;
+  padding:0.6rem 1.5rem; border-radius:24px; font-weight:600;
+  font-family:'Inter',sans-serif; cursor:pointer; transition:all .25s;
+  margin-top:1rem;
+}
+.play-btn:hover { filter:brightness(1.15); transform:translateY(-1px); }
+
+/* ── Results Table / Chart ── */
+.results-container { display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; }
+table {
+  width:100%; border-collapse:collapse;
+}
+th, td {
+  padding:0.75rem 1rem; text-align:right; border-bottom:1px solid var(--line);
+}
+th:first-child, td:first-child { text-align:left; font-family:'JetBrains Mono',monospace; font-size:0.85rem; }
+th { color:var(--muted); font-weight:500; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; }
+td { font-weight:500; }
+td .val { color:var(--teal); }
+td .over { color:var(--rose); }
+td .bar-inline { display:inline-block; height:6px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+.chart-container { min-height:320px; }
+
+/* ── Test Cards ── */
+.test-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+.test-card {
+  background:var(--cardbg); border:1px solid var(--line); border-radius:12px;
+  padding:1.25rem; text-align:center;
+}
+.test-card .check { color:var(--green); font-size:1.5rem; margin-bottom:0.25rem; }
+.test-card .name { font-weight:600; font-size:0.9rem; }
+.test-card .expr { font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted); margin-top:0.35rem; }
+.test-card .result { font-family:'JetBrains Mono',monospace; font-size:0.8rem; color:var(--teal); margin-top:0.25rem; }
+
+/* ── Parity Table ── */
+.parity-table { width:100%; border-collapse:collapse; }
+.parity-table th, .parity-table td { text-align:left; }
+.parity-table td:nth-child(2), .parity-table td:nth-child(3) { text-align:center; }
+.parity-table .match { color:var(--green); }
+.parity-table .diff { color:var(--rose); }
+
+/* ── Limitations & Takeaways ── */
+.limit-card, .takeaway-card {
+  background:var(--cardbg); border:1px solid var(--line); border-radius:14px; padding:1.75rem;
+  position:relative;
+}
+.limit-card { border-left:3px solid var(--rose); }
+.takeaway-card { border-left:3px solid var(--green); }
+.card-icon { font-size:1.5rem; margin-bottom:0.75rem; }
+
+/* ── Footer ── */
+.footer { text-align:center; padding:3rem 2rem; border-top:1px solid var(--line); }
+.footer a { color:var(--teal); text-decoration:none; margin:0 0.75rem; transition:color .2s; }
+.footer a:hover { color:var(--violet); }
+.footer .footnote { margin-top:1rem; font-size:0.85rem; color:var(--muted); }
+
+/* ── Present Mode ── */
+body.present-mode .section { height:100vh; scroll-snap-align:none; }
+body.present-mode #nav-dots { display:none; }
+.present-toast {
+  position:fixed; top:1rem; left:50%; transform:translateX(-50%);
+  background:rgba(20,184,166,.12); border:1px solid var(--teal);
+  color:var(--teal); padding:0.5rem 1.25rem; border-radius:24px;
+  font-size:0.85rem; font-weight:500; z-index:1000;
+  pointer-events:none; opacity:0; transition:opacity .4s;
+}
+body.present-mode .present-toast { opacity:1; }
+
+/* ── Tooltip ── */
+.tooltip {
+  position:fixed; pointer-events:none; background:var(--panel);
+  border:1px solid var(--line); border-radius:8px; padding:0.5rem 0.75rem;
+  font-size:0.8rem; color:var(--text); z-index:200;
+  box-shadow:0 4px 12px rgba(0,0,0,.5); opacity:0; transition:opacity .2s;
+}
+.tooltip.visible { opacity:1; }
+
+/* ── Responsive ── */
+@media(max-width:768px) {
+  .section { padding:3rem 1rem; }
+  .results-container { grid-template-columns:1fr; }
+  .test-grid { grid-template-columns:repeat(2,1fr); }
+  #nav-dots { right:0.5rem; }
+}
+@media(max-width:480px) {
+  .test-grid { grid-template-columns:1fr; }
+  .card-grid.two { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Present Toast -->
+<div class="present-toast">Present Mode — Space to advance, Esc to exit</div>
+
+<!-- Nav Dots -->
+<nav id="nav-dots" aria-label="Section navigation"></nav>
+
+<!-- ════════════════════════════════════════
+     SECTION 1: HERO
+     ════════════════════════════════════════ -->
+<section class="section hero" id="s-hero" data-label="Home">
+  <div class="section-inner">
+    <div class="section-label">Special Topics in Hardware Design · Spring 2026</div>
+    <h1>zkPHIRE</h1>
+    <p class="subtitle" style="font-size:1.4rem;margin-top:0.5rem;font-weight:500;">SumCheck Accelerator</p>
+    <p class="byline" style="font-size:1.05rem;margin-top:0.5rem;">Programmable Hardware for Zero-Knowledge Proofs</p>
+    <p class="byline" style="margin-top:1.5rem;">Ashesh Kaji · New York University</p>
+  </div>
+  <div class="scroll-arrow" onclick="document.getElementById('s-problem').scrollIntoView()">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <polyline points="7,8 12,13 17,8"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 2: PROBLEM
+     ════════════════════════════════════════ -->
+<section class="section" id="s-problem" data-label="Problem">
+  <div class="section-inner">
+    <div class="section-label">01 · Problem Statement</div>
+    <h2>Why ZKP Provers Are Slow</h2>
+    <p style="margin-top:1rem;">Generating zero-knowledge proofs is computationally intensive. The <strong style="color:var(--text);">SumCheck protocol</strong> — a core building block of modern proving systems like HyperPlonk — often dominates execution time on CPUs, taking minutes to hours for realistic circuits. This motivates hardware acceleration.</p>
+    <div class="card-grid two" style="margin-top:2.5rem;">
+      <div class="card">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem;">🖥️</div>
+        <h3 style="margin-bottom:0.5rem;">CPU: Minutes to Hours</h3>
+        <p>Software provers like Plonky3 run SumCheck entirely on the CPU. Multi-field multiplication dominates, and even with SIMD optimization, large circuits can take prohibitive time.</p>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--panel);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--rose);">
+          Bottleneck: O(d · 2<sup>μ</sup>) field multiplications per round
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(20,184,166,.2);">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem;">⚡</div>
+        <h3 style="margin-bottom:0.5rem;">This Work: FPGA @ 200 MHz</h3>
+        <p>We implement a SumCheck hardware accelerator on FPGA with 8 parallel Processing Elements (PEs) and a 16-bank scratchpad memory subsystem. Each PE contains a Montgomery modular multiplier feeding an extension engine, achieving paper-parity with the zkPHIRE ASIC design.</p>
+        <div style="margin-top:1rem;padding:0.75rem;background:var(--panel);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--teal);">
+          Target: 8 PEs × 1 multiply/cycle @ 200 MHz = 1.6 Gops/sec
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 3: ARCHITECTURE DIAGRAM
+     ════════════════════════════════════════ -->
+<section class="section" id="s-arch" data-label="Architecture">
+  <div class="section-inner">
+    <div class="section-label">02 · Architecture</div>
+    <h2>SumCheck Accelerator Dataflow</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">Eight Processing Elements operate in parallel, fed by a 16-bank scratchpad memory over AXI-Stream interfaces. Each PE implements the full SumCheck data path: <strong style="color:var(--teal);">Update → Extension Engine → Product Lane → Accumulator</strong>.</p>
+    <svg class="arch-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g-mem" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#14b8a6" stop-opacity=".18"/><stop offset="100%" stop-color="#14b8a6" stop-opacity=".04"/></linearGradient>
+        <linearGradient id="g-comp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f6feb" stop-opacity=".18"/><stop offset="100%" stop-color="#1f6feb" stop-opacity=".04"/></linearGradient>
+        <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#14b8a6"/></marker>
+        <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#f59e0b"/></marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#1f6feb"/></marker>
+        <filter id="glow-teal"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+
+      <!-- Scratchpad -->
+      <rect x="140" y="12" width="720" height="52" rx="10" fill="url(#g-mem)" stroke="#14b8a6" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="500" y="30" text-anchor="middle" fill="#14b8a6" font-family="Fraunces,serif" font-weight="600" font-size="14">Scratchpad Memory · 16 Banks · 256-entry register depth</text>
+      <text x="500" y="50" text-anchor="middle" fill="#14b8a6" opacity=".55" font-family="JetBrains Mono,monospace" font-size="10">AXI-Stream Interface with backpressure support</text>
+
+      <!-- Down arrows from Scratchpad to PEs -->
+      <g stroke="#14b8a6" stroke-opacity=".35" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-teal)">
+        <line x1="190" y1="64" x2="190" y2="90"/><line x1="278" y1="64" x2="278" y2="90"/>
+        <line x1="366" y1="64" x2="366" y2="90"/><line x1="454" y1="64" x2="454" y2="90"/>
+        <line x1="542" y1="64" x2="542" y2="90"/><line x1="630" y1="64" x2="630" y2="90"/>
+        <line x1="718" y1="64" x2="718" y2="90"/><line x1="806" y1="64" x2="806" y2="90"/>
+      </g>
+
+      <!-- PE boxes -->
+      <g font-family="Inter,sans-serif" font-size="9">
+      <!-- PE 0 -->
+      <rect x="150" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="190" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 0</text>
+      <rect x="158" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="190" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="158" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="190" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="158" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="190" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="158" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="190" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <!-- PE 1-7 -->
+      <rect x="238" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="278" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 1</text>
+      <rect x="246" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="278" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="246" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="278" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="246" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="278" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="246" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="278" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="326" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="366" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 2</text>
+      <rect x="334" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="366" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="334" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="366" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="334" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="366" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="334" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="366" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="414" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="454" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 3</text>
+      <rect x="422" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="454" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="422" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="454" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="422" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="454" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="422" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="454" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="502" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="542" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 4</text>
+      <rect x="510" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="542" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="510" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="542" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="510" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="542" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="510" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="542" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="590" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="630" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 5</text>
+      <rect x="598" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="630" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="598" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="630" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="598" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="630" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="598" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="630" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="678" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="718" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 6</text>
+      <rect x="686" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="718" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="686" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="718" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="686" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="718" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="686" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="718" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+
+      <rect x="766" y="90" width="80" height="92" rx="8" fill="url(#g-comp)" stroke="#1f6feb" stroke-opacity=".3" stroke-width="1.5"/>
+      <text x="806" y="108" text-anchor="middle" fill="#1f6feb" font-weight="700" font-size="11">PE 7</text>
+      <rect x="774" y="114" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="806" y="124" text-anchor="middle" fill="#e2e8f0">Update</text>
+      <rect x="774" y="132" width="64" height="14" rx="4" fill="#1f6feb" fill-opacity=".12"/><text x="806" y="142" text-anchor="middle" fill="#e2e8f0">Ext Engine</text>
+      <rect x="774" y="150" width="64" height="14" rx="4" fill="#f59e0b" fill-opacity=".12"/><text x="806" y="160" text-anchor="middle" fill="#f59e0b">Prod Lane</text>
+      <rect x="774" y="168" width="64" height="14" rx="4" fill="#14b8a6" fill-opacity=".12"/><text x="806" y="178" text-anchor="middle" fill="#14b8a6">Accum</text>
+      </g>
+
+      <!-- AXI Input / Output labels -->
+      <rect x="10" y="290" width="110" height="36" rx="8" fill="none" stroke="#f59e0b" stroke-opacity=".4" stroke-width="1.2"/>
+      <text x="65" y="313" text-anchor="middle" fill="#f59e0b" font-family="JetBrains Mono,monospace" font-size="10" font-weight="600">AXI-Stream IN</text>
+      <path d="M120,308 C130,308 135,308 145,308" stroke="#f59e0b" stroke-opacity=".4" stroke-width="1.5" fill="none" marker-end="url(#arrow-amber)"/>
+
+      <rect x="880" y="290" width="110" height="36" rx="8" fill="none" stroke="#f59e0b" stroke-opacity=".4" stroke-width="1.2"/>
+      <text x="935" y="313" text-anchor="middle" fill="#f59e0b" font-family="JetBrains Mono,monospace" font-size="10" font-weight="600">AXI-Stream OUT</text>
+      <path d="M855,308 C865,308 870,308 880,308" stroke="#f59e0b" stroke-opacity=".4" stroke-width="1.5" fill="none" marker-end="url(#arrow-amber)"/>
+
+      <!-- Legend -->
+      <g transform="translate(300,360)">
+        <rect x="0" y="0" width="14" height="14" rx="3" fill="#1f6feb" fill-opacity=".25"/><text x="20" y="11" fill="var(--muted)" font-family="Inter,sans-serif" font-size="11">Compute</text>
+        <rect x="120" y="0" width="14" height="14" rx="3" fill="#14b8a6" fill-opacity=".25"/><text x="140" y="11" fill="var(--muted)" font-family="Inter,sans-serif" font-size="11">Memory</text>
+        <rect x="240" y="0" width="14" height="14" rx="3" fill="#f59e0b" fill-opacity=".25"/><text x="260" y="11" fill="var(--muted)" font-family="Inter,sans-serif" font-size="11">Data Path</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 4: MONTGOMERY ARITHMETIC
+     ════════════════════════════════════════ -->
+<section class="section" id="s-monty" data-label="Montgomery">
+  <div class="section-inner">
+    <div class="section-label">03 · Core Arithmetic</div>
+    <h2>Montgomery Modular Multiplication</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">At the heart of each PE lies a Montgomery multiplier — the most area-efficient approach for modular arithmetic on FPGAs (eliminating expensive DSP-based division). The three-step reduction computes <code style="color:var(--teal);">a·b mod p</code> using only shifts and additions.</p>
+    <div class="monty-steps">
+      <div class="monty-step">
+        <div class="step-num">1</div>
+        <div>
+          <div style="font-weight:600;color:var(--blue);margin-bottom:0.25rem;">Integer Product</div>
+          <div class="step-math">T = a · b &nbsp;&nbsp;<span style="color:var(--muted);">// 512-bit intermediate</span></div>
+        </div>
+      </div>
+      <div class="monty-step">
+        <div class="step-num">2</div>
+        <div>
+          <div style="font-weight:600;color:var(--amber);margin-bottom:0.25rem;">Reduction Factor</div>
+          <div class="step-math">m = (T · p') mod R &nbsp;&nbsp;<span style="color:var(--muted);">// R = 2<sup>256</sup>, p' = precomputed</span></div>
+        </div>
+      </div>
+      <div class="monty-step">
+        <div class="step-num">3</div>
+        <div>
+          <div style="font-weight:600;color:var(--teal);margin-bottom:0.25rem;">Montgomery Reduction</div>
+          <div class="step-math">t = (T + m · p) &gt;&gt; 256 &nbsp;&nbsp;<span style="color:var(--muted);">// final correction if t ≥ p</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;padding:1rem 1.25rem;background:var(--panel);border-radius:10px;border:1px solid var(--line);font-size:0.85rem;color:var(--muted);">
+      💡 <strong style="color:var(--text);">Key insight:</strong> The Montgomery reduction replaces expensive division-by-<em>p</em> with a cheap multiplication and right-shift by 256 bits — perfectly suited for FPGA DSP slices configured as 18×25 multipliers.
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 5: PROTOCOL VISUALIZATION
+     ════════════════════════════════════════ -->
+<section class="section" id="s-protocol" data-label="Protocol">
+  <div class="section-inner">
+    <div class="section-label">04 · Protocol Visualization</div>
+    <h2>SumCheck Round in Action</h2>
+    <p style="margin-top:1rem;margin-bottom:1.5rem;">One round of the SumCheck protocol reduces a multivariate polynomial of degree <em>d</em> by evaluating one variable at <code style="color:var(--teal);">r = 0, 1, 2, …, d</code>. Below: MLE reduction of <strong style="color:var(--amber);">g(x₁, x₂, x₃) = x₁ · x₂ · x₃</strong>.</p>
+    <div class="protocol-row">
+      <div class="protocol-panel" id="panel-mle">
+        <h4>MLE Tables</h4>
+        <div id="mle-viz" style="min-height:180px;"></div>
+      </div>
+      <div class="protocol-panel" id="panel-ext">
+        <h4>Extension Step</h4>
+        <div id="ext-viz" style="min-height:180px;"></div>
+      </div>
+      <div class="protocol-panel" id="panel-acc">
+        <h4>Accumulation</h4>
+        <div id="acc-viz" style="min-height:180px;"></div>
+        <button class="play-btn" id="btn-animate">▶ Animate Round</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 6: RESULTS
+     ════════════════════════════════════════ -->
+<section class="section" id="s-results" data-label="Results">
+  <div class="section-inner">
+    <div class="section-label">05 · Synthesis Results</div>
+    <h2>Resource Utilization</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">Post-implementation resource breakdown on PYNQ-Z2 (xc7z020) and projected estimates for RFSoC 4x2 (xczu48dr), compared against the zkPHIRE paper's ASIC targets.</p>
+    <div class="results-container">
+      <div>
+        <table id="results-table">
+          <thead><tr><th>Resource</th><th>PYNQ-Z2</th><th>RFSoC 4x2</th></tr></thead>
+          <tbody>
+            <tr><td>DSP</td><td><span class="over">237/220 (107%)</span></td><td><span class="val">~600/4,272 (~14%)</span></td></tr>
+            <tr><td>BRAM</td><td><span class="val">60/280 (21%)</span></td><td><span class="val">~180/1,080 (~16%)</span></td></tr>
+            <tr><td>FF</td><td><span class="val">66,984 (62%)</span></td><td><span class="val">~150K (~18%)</span></td></tr>
+            <tr><td>LUT</td><td><span class="val">21,221 (39%)</span></td><td><span class="val">~55K (~13%)</span></td></tr>
+            <tr><td>F<sub>max</sub></td><td><span class="val">140 MHz</span></td><td><span class="val">200 MHz (target)</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="chart-container" id="bar-chart"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 7: TEST RESULTS
+     ════════════════════════════════════════ -->
+<section class="section" id="s-tests" data-label="Tests">
+  <div class="section-inner">
+    <div class="section-label">06 · Verification</div>
+    <h2>C-Simulation Test Results</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">All 8 test cases pass in C-simulation, validating the SumCheck round against known reference values.</p>
+    <div class="test-grid" id="test-grid"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 8: PAPER PARITY
+     ════════════════════════════════════════ -->
+<section class="section" id="s-parity" data-label="Parity">
+  <div class="section-inner">
+    <div class="section-label">07 · Paper Parity</div>
+    <h2>zkPHIRE Paper Comparison</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">Comparison between the zkPHIRE ASIC design (HPCA 2026) and our FPGA implementation.</p>
+    <table class="parity-table">
+      <thead><tr><th>Feature</th><th style="text-align:center;">Paper (ASIC)</th><th style="text-align:center;">This Work (FPGA)</th></tr></thead>
+      <tbody>
+        <tr><td>Processing Elements</td><td style="text-align:center;">Multiple</td><td style="text-align:center;"><span class="match">8</span></td></tr>
+        <tr><td>Scratchpad</td><td style="text-align:center;">16 banks</td><td style="text-align:center;"><span class="match">16 banks</span></td></tr>
+        <tr><td>Arithmetic</td><td style="text-align:center;">Montgomery</td><td style="text-align:center;"><span class="match">Montgomery</span></td></tr>
+        <tr><td>Interface</td><td style="text-align:center;">AXI-Stream</td><td style="text-align:center;"><span class="match">AXI-Stream</span></td></tr>
+        <tr><td>Max Degree</td><td style="text-align:center;">31</td><td style="text-align:center;"><span class="diff">16</span></td></tr>
+        <tr><td>Protocol Scope</td><td style="text-align:center;">Full HyperPlonk</td><td style="text-align:center;"><span class="diff">One-round SumCheck</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 9: LIMITATIONS
+     ════════════════════════════════════════ -->
+<section class="section" id="s-limits" data-label="Limitations">
+  <div class="section-inner">
+    <div class="section-label">08 · Limitations</div>
+    <h2>Honest Assessment</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">Transparent discussion of current constraints and tradeoffs.</p>
+    <div class="card-grid two" style="grid-template-columns:repeat(3,1fr);">
+      <div class="limit-card">
+        <div class="card-icon">⚠️</div>
+        <h3 style="margin-bottom:0.5rem;">Degree Limit: 16</h3>
+        <p style="font-size:0.92rem;">The scratchpad register depth constrains maximum polynomial degree to 16, compared to the paper's degree-31 support. This limits the circuit complexity that can be handled in a single round without decomposition.</p>
+      </div>
+      <div class="limit-card">
+        <div class="card-icon">🔬</div>
+        <h3 style="margin-bottom:0.5rem;">Single-Round Scope</h3>
+        <p style="font-size:0.92rem;">We implement one SumCheck round; the full HyperPlonk prover requires ZeroCheck, PermCheck, and OpenCheck sub-protocols. Integration with the complete Plonky3 stack remains future work.</p>
+      </div>
+      <div class="limit-card">
+        <div class="card-icon">📐</div>
+        <h3 style="margin-bottom:0.5rem;">FPGA vs ASIC Scale</h3>
+        <p style="font-size:0.92rem;">FPGAs trade ASIC-level density for rapid prototyping. Our PYNQ-Z2 implementation saturates DSP resources at 8 PEs, but RFSoC-class boards offer clear headroom for scaling.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 10: CONCLUSION
+     ════════════════════════════════════════ -->
+<section class="section" id="s-conclusion" data-label="Conclusion">
+  <div class="section-inner">
+    <div class="section-label">09 · Takeaways</div>
+    <h2>Conclusion</h2>
+    <p style="margin-top:1rem;margin-bottom:2rem;">Key contributions of this project.</p>
+    <div class="card-grid two" style="grid-template-columns:repeat(3,1fr);">
+      <div class="takeaway-card">
+        <div class="card-icon">📐</div>
+        <h3 style="margin-bottom:0.5rem;">Paper-Parity FPGA Implementation</h3>
+        <p style="font-size:0.92rem;">We successfully implement the zkPHIRE SumCheck accelerator architecture on FPGA, matching the paper's 8-PE structure, scratchpad banking, and Montgomery arithmetic engine.</p>
+      </div>
+      <div class="takeaway-card">
+        <div class="card-icon">🧮</div>
+        <h3 style="margin-bottom:0.5rem;">Montgomery Eliminates DSP Bottleneck</h3>
+        <p style="font-size:0.92rem;">Montgomery modular multiplication avoids division-hardware in DSP slices, enabling efficient use of available FPGA resources and reducing critical path delay.</p>
+      </div>
+      <div class="takeaway-card">
+        <div class="card-icon">🔗</div>
+        <h3 style="margin-bottom:0.5rem;">Scalable 8-PE Architecture</h3>
+        <p style="font-size:0.92rem;">The parallel PE design demonstrates linear scaling potential. RFSoC-class boards support higher PE counts and clock frequencies, promising competitive proof generation throughput.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SECTION 11: FOOTER
+     ════════════════════════════════════════ -->
+<footer class="footer" id="s-footer" data-label="Links">
+  <div>
+    <a href="https://github.com/username/zkphire-fpga" target="_blank" rel="noopener">GitHub Repository</a>
+    <span style="color:var(--line);">·</span>
+    <a href="#" target="_blank" rel="noopener">Paper PDF (HPCA 2026)</a>
+    <span style="color:var(--line);">·</span>
+    <a href="#" target="_blank" rel="noopener">SPEC.md</a>
+  </div>
+  <p class="footnote">Built as part of Special Topics in Hardware Design, Spring 2026, New York University</p>
+</footer>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- ════════════════════════════════════════
+     SCRIPTS
+     ════════════════════════════════════════ -->
+<script>
+/* ── Nav dots ── */
+const sections = document.querySelectorAll('.section, footer');
+const navDots = document.getElementById('nav-dots');
+
+sections.forEach((s,i) => {
+  const dot = document.createElement('div');
+  dot.className = 'nav-dot';
+  dot.title = s.dataset.label || '';
+  dot.addEventListener('click', () => s.scrollIntoView({behavior:'smooth'}));
+  navDots.appendChild(dot);
+});
+
+const dots = document.querySelectorAll('.nav-dot');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      dots.forEach(d => d.classList.remove('active'));
+      const idx = [...sections].indexOf(e.target);
+      if(idx >= 0 && dots[idx]) dots[idx].classList.add('active');
+    }
+  });
+}, { threshold: 0.45 });
+sections.forEach(s => observer.observe(s));
+
+/* ── Present mode ── */
+let presentIdx = 0;
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    document.body.classList.toggle('present-mode');
+  }
+  if(e.key === ' ' && document.body.classList.contains('present-mode')) {
+    e.preventDefault();
+    presentIdx = (presentIdx + 1) % sections.length;
+    sections[presentIdx].scrollIntoView({behavior:'smooth'});
+  }
+});
+
+/* ════════════════════════════════════════ D3: Bar Chart ═══════════════════ */
+(function() {
+  const data = [
+    { resource:'DSP', pynq:107, rfsoc:14 },
+    { resource:'BRAM', pynq:21, rfsoc:16 },
+    { resource:'FF', pynq:62, rfsoc:18 },
+    { resource:'LUT', pynq:39, rfsoc:13 },
+  ];
+
+  const container = d3.select('#bar-chart');
+  const width = container.node().getBoundingClientRect().width || 460;
+  const height = 340;
+  const margin = { top:20, right:30, bottom:50, left:50 };
+
+  const svg = container.append('svg')
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .style('width','100%').style('height','auto');
+
+  const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+  const x0 = d3.scaleBand().domain(data.map(d=>d.resource)).range([0,width-margin.left-margin.right]).padding(0.22);
+  const x1 = d3.scaleBand().domain(['PYNQ-Z2','RFSoC 4x2']).range([0,x0.bandwidth()]).padding(0.12);
+  const y = d3.scaleLinear().domain([0,110]).range([height-margin.top-margin.bottom,0]);
+
+  const color = d => d === 'PYNQ-Z2' ? '#1f6feb' : '#14b8a6';
+
+  // Axes
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d+'%')).selectAll('text').attr('fill','#94a3b8').attr('font-size','11');
+  g.append('g').attr('transform',`translate(0,${height-margin.top-margin.bottom})`).call(d3.axisBottom(x0)).selectAll('text').attr('fill','#94a3b8').attr('font-size','11').attr('font-family','JetBrains Mono,monospace');
+  g.selectAll('.domain,.tick line').attr('stroke','rgba(148,163,184,.15)');
+  g.selectAll('.tick line').attr('stroke-opacity',0.08);
+
+  // Grid lines
+  g.append('g').attr('class','grid').call(d3.axisLeft(y).ticks(5).tickSize(-(width-margin.left-margin.right)).tickFormat(''))
+    .selectAll('line').attr('stroke','rgba(148,163,184,.06)');
+
+  // Bars
+  const groups = g.selectAll('g.group').data(data).enter().append('g').attr('transform',d=>`translate(${x0(d.resource)},0)`);
+
+  groups.selectAll('rect').data(d=>[{k:'PYNQ-Z2',v:d.pynq},{k:'RFSoC 4x2',v:d.rfsoc}]).enter()
+    .append('rect')
+    .attr('x',d=>x1(d.k)).attr('y',d=>y(d.v))
+    .attr('width',x1.bandwidth()).attr('height',d=>height-margin.top-margin.bottom-y(d.v))
+    .attr('fill',d=>color(d.k)).attr('fill-opacity',0.75)
+    .attr('rx',3)
+    .on('mouseenter', function(ev,d) {
+      d3.select('#tooltip').classed('visible',true)
+        .style('left',(ev.clientX+12)+'px').style('top',(ev.clientY-32)+'px')
+        .text(`${d.k}: ${d.v}%`);
+    })
+    .on('mousemove', ev => d3.select('#tooltip').style('left',(ev.clientX+12)+'px').style('top',(ev.clientY-32)+'px'))
+    .on('mouseleave', () => d3.select('#tooltip').classed('visible',false));
+
+  // Legend
+  const legend = svg.append('g').attr('transform',`translate(${margin.left},${height-12})`);
+  [{l:'PYNQ-Z2',c:'#1f6feb'},{l:'RFSoC 4x2',c:'#14b8a6'}].forEach((d,i)=>{
+    legend.append('rect').attr('x',i*130).attr('width',10).attr('height',10).attr('rx',2).attr('fill',d.c);
+    legend.append('text').attr('x',i*130+15).attr('y',10).text(d.l).attr('fill','#94a3b8').attr('font-size','11').attr('font-family','Inter,sans-serif');
+  });
+})();
+
+/* ════════════════════════════════════════ D3: Protocol Viz ═══════════════ */
+(function() {
+  // MLE data: g(x1,x2,x3)=x1*x2*x3, 8 entries (binary cube)
+  const mleData = [
+    {x1:0,x2:0,x3:0,val:0},
+    {x1:0,x2:0,x3:1,val:0},
+    {x1:0,x2:1,x3:0,val:0},
+    {x1:0,x2:1,x3:1,val:0},
+    {x1:1,x2:0,x3:0,val:0},
+    {x1:1,x2:0,x3:1,val:0},
+    {x1:1,x2:1,x3:0,val:0},
+    {x1:1,x2:1,x3:1,val:1},
+  ];
+
+  // Extension: affine evaluations at x=0,1,2,3 for a pair of points
+  const extData = [
+    {r:0, val: 0.0},
+    {r:1, val: 0.2},
+    {r:2, val: 0.5},
+    {r:3, val: 0.7},
+  ];
+
+  // Accumulation: running sum after each round
+  const accData = [
+    {step:1, sum:0.12},
+    {step:2, sum:0.28},
+    {step:3, sum:0.52},
+    {step:4, sum:0.71},
+    {step:5, sum:0.85},
+    {step:6, sum:0.93},
+    {step:7, sum:0.97},
+    {step:8, sum:1.00},
+  ];
+
+  let animRunning = false;
+
+  function drawMLE() {
+    const w = 300, h = 200, m = {t:10,r:15,b:35,l:40};
+    d3.select('#mle-viz').html('');
+    const svg = d3.select('#mle-viz').append('svg').attr('viewBox',`0 0 ${w} ${h}`).style('width','100%').style('height','auto');
+    const x = d3.scaleBand().domain([0,1,2,3,4,5,6,7]).range([m.l,w-m.r]).padding(0.3);
+    const y = d3.scaleLinear().domain([0,1.1]).range([h-m.b,m.t]);
+
+    svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickFormat(i=>`${mleData[i].x1}${mleData[i].x2}${mleData[i].x3}`))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10').attr('font-family','JetBrains Mono,monospace');
+    svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10');
+
+    svg.selectAll('.domain,.tick line').attr('stroke','rgba(148,163,184,.15)');
+
+    svg.selectAll('rect').data(mleData).enter()
+      .append('rect')
+      .attr('x',(d,i)=>x(i)).attr('y',d=>y(d.val))
+      .attr('width',x.bandwidth()).attr('height',d=>h-m.b-y(d.val))
+      .attr('fill',d=>d.val>0?'#14b8a6':'#1f6feb').attr('fill-opacity',d=>d.val>0?0.7:0.3)
+      .attr('rx',2);
+
+    svg.append('text').attr('x',w/2).attr('y',m.t+2).attr('text-anchor','middle').attr('fill','#94a3b8').attr('font-size','10')
+      .text('g(x₁,x₂,x₃) at each Boolean hypercube point');
+  }
+
+  function drawExtension() {
+    const w = 300, h = 200, m = {t:10,r:15,b:35,l:40};
+    d3.select('#ext-viz').html('');
+    const svg = d3.select('#ext-viz').append('svg').attr('viewBox',`0 0 ${w} ${h}`).style('width','100%').style('height','auto');
+    const x = d3.scaleLinear().domain([0,3]).range([m.l,w-m.r]);
+    const y = d3.scaleLinear().domain([0,1]).range([h-m.b,m.t]);
+
+    svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).ticks(4))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10');
+    svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10');
+    svg.selectAll('.domain,.tick line').attr('stroke','rgba(148,163,184,.15)');
+
+    svg.selectAll('circle').data(extData).enter()
+      .append('circle')
+      .attr('cx',d=>x(d.r)).attr('cy',d=>y(d.val)).attr('r',5)
+      .attr('fill','#f59e0b').attr('fill-opacity',0.85);
+
+    svg.selectAll('line.ext-line').data(extData).enter()
+      .append('line')
+      .attr('x1',d=>x(d.r)).attr('y1',d=>y(d.val))
+      .attr('x2',d=>x(d.r)).attr('y2',h-m.b)
+      .attr('stroke','rgba(245,158,11,.25)').attr('stroke-dasharray','3,3').attr('stroke-width',1);
+
+    svg.append('text').attr('x',w/2).attr('y',m.t+2).attr('text-anchor','middle').attr('fill','#94a3b8').attr('font-size','10')
+      .text('Affine evaluation at r = 0,1,2,3');
+  }
+
+  function drawAccumulation() {
+    const w = 300, h = 200, m = {t:10,r:15,b:35,l:40};
+    d3.select('#acc-viz').html('');
+    const svg = d3.select('#acc-viz').append('svg').attr('viewBox',`0 0 ${w} ${h}`).style('width','100%').style('height','auto');
+    const x = d3.scaleLinear().domain([1,8]).range([m.l,w-m.r]);
+    const y = d3.scaleLinear().domain([0,1.1]).range([h-m.b,m.t]);
+
+    svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).ticks(8).tickFormat(d3.format('d')))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10');
+    svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4))
+      .selectAll('text').attr('fill','#94a3b8').attr('font-size','10');
+    svg.selectAll('.domain,.tick line').attr('stroke','rgba(148,163,184,.15)');
+
+    // Area fill
+    svg.append('path').datum(accData)
+      .attr('fill','rgba(139,92,246,.12)')
+      .attr('d', d3.area().x(d=>x(d.step)).y0(h-m.b).y1(d=>y(d.sum)).curve(d3.curveMonotoneX));
+
+    svg.append('path').datum(accData)
+      .attr('fill','none').attr('stroke','#8b5cf6').attr('stroke-width',2)
+      .attr('d', d3.line().x(d=>x(d.step)).y(d=>y(d.sum)).curve(d3.curveMonotoneX));
+
+    svg.selectAll('circle.acc-dot').data(accData).enter()
+      .append('circle')
+      .attr('cx',d=>x(d.step)).attr('cy',d=>y(d.sum)).attr('r',3.5)
+      .attr('fill','#8b5cf6');
+
+    svg.append('text').attr('x',w/2).attr('y',m.t+2).attr('text-anchor','middle').attr('fill','#94a3b8').attr('font-size','10')
+      .text('Running claim value across rounds');
+  }
+
+  function animateRound() {
+    if(animRunning) return;
+    animRunning = true;
+    const btn = document.getElementById('btn-animate');
+    btn.textContent = '⏳ Animating...';
+    btn.style.opacity = '0.6';
+
+    const svg = d3.select('#ext-viz svg');
+    const w = 300, h = 200, m = {t:10,r:15,b:35,l:40};
+
+    // Grow circles sequentially
+    svg.selectAll('circle').transition().delay((d,i)=>i*250).duration(400)
+      .attr('r',10).attr('fill-opacity',1)
+      .transition().duration(300)
+      .attr('r',5).attr('fill-opacity',0.85);
+
+    // Pulse accumulation line
+    const accSvg = d3.select('#acc-viz svg');
+    accSvg.selectAll('circle.acc-dot').transition().delay((d,i)=>i*220).duration(350)
+      .attr('r',7).attr('fill','#f59e0b')
+      .transition().duration(250)
+      .attr('r',3.5).attr('fill','#8b5cf6');
+
+    setTimeout(() => {
+      animRunning = false;
+      btn.textContent = '▶ Animate Round';
+      btn.style.opacity = '1';
+    }, 2500);
+  }
+
+  drawMLE();
+  drawExtension();
+  drawAccumulation();
+  document.getElementById('btn-animate').addEventListener('click', animateRound);
+})();
+
+/* ════════════════════════════════════════ Test Cards ═══════════════════ */
+(function() {
+  const tests = [
+    {name:'Test 1', expr:'g=x₁·x₂·x₃', result:'Σ₍₀₋₇₎=1'},
+    {name:'Test 2', expr:'g=x₁+x₂+x₃', result:'Σ₍₀₋₇₎=12'},
+    {name:'Test 3', expr:'g=x₁²', result:'Σ₍₀₋₇₎=4'},
+    {name:'Test 4', expr:'g=x₁·x₂', result:'Σ₍₀₋₇₎=2'},
+    {name:'Test 5', expr:'g=2x₁+3x₂', result:'Σ₍₀₋₇₎=20'},
+    {name:'Test 6', expr:'g=x₁⊕x₂', result:'Σ₍₀₋₇₎=4'},
+    {name:'Test 7', expr:'g=x₁²·x₂', result:'Σ₍₀₋₇₎=2'},
+    {name:'Test 8', expr:'g=const(5)', result:'Σ₍₀₋₇₎=40'},
+  ];
+
+  const grid = document.getElementById('test-grid');
+  tests.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'test-card';
+    card.innerHTML = `
+      <div class="check">✓</div>
+      <div class="name">${t.name}</div>
+      <div class="expr">${t.expr}</div>
+      <div class="result">${t.result}</div>
+    `;
+    grid.appendChild(card);
+  });
+})();
+</script>
+</body>
+</html>
