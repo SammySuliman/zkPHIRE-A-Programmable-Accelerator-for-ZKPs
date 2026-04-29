@@ -6,6 +6,11 @@
 #include "include/accumulator.hpp"
 #include "include/scratchpad.hpp"
 
+// AXI-Stream types for sumcheck_round_axis
+#include <ap_axi_sdata.h>
+#include <hls_stream.h>
+using axis_word_t = hls::axis<ap_uint<256>, 0, 0, 0>;
+
 // ===================================================================
 // PE SumCheck Datapath — regular domain, one PE per tile range
 //
