@@ -6,7 +6,8 @@
 // ---------------------------------------------------------------------------
 // zkPHIRE SumCheck Accelerator — RFSoC 4x2 (xczu48dr-ffvg1517-2-e)
 //
-// Paper-parity: 8 PEs, 16 scratchpad banks, degree ≤ 16.
+// Paper-parity-scaled implementation: 8 PEs and 16 scratchpad banks.
+// Current verified configuration supports degree ≤ 6 and table size ≤ 256.
 // Arithmetic: regular-domain BN254 with shared modular multiplier.
 // ---------------------------------------------------------------------------
 
