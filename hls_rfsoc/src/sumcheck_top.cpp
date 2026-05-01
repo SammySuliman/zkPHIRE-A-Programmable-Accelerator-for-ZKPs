@@ -25,13 +25,6 @@ static void pe_sumcheck_round(
 #pragma HLS ARRAY_PARTITION variable=round_samples complete dim=1
     accum_init(deg, round_samples);
 
-    if (start_pair == 0) {
-        for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
-#pragma HLS PIPELINE II=1
-            scratchpad_load(sp, m, tables[m], num_pairs * 2);
-        }
-    }
-
     pair_loop:
     for (int k = start_pair; k < start_pair + num_pairs; ++k) {
 #pragma HLS PIPELINE II=1
@@ -79,6 +72,12 @@ static void multi_pe_sumcheck(
     field_elem_t sp[SCRATCHPAD_BANKS][SCRATCHPAD_DEPTH];
 #pragma HLS ARRAY_PARTITION variable=pe_all_samples complete dim=1
 #pragma HLS ARRAY_PARTITION variable=sp complete dim=1
+
+    // Load scratchpad once for all PEs
+    for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
+#pragma HLS PIPELINE II=1
+        scratchpad_load(sp, m, tables[m], size);
+    }
 
     for (int pe = 0; pe < NUM_PES; ++pe) {
 #pragma HLS UNROLL
