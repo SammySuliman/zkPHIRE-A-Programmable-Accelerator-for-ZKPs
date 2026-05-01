@@ -1,106 +1,101 @@
-# zkPHIRE SumCheck — Vitis HLS Implementation
+# zkPHIRE SumCheck — PYNQ-Z2 Vitis HLS Implementation
 
-Hardware accelerator for one programmable SumCheck round, targeting Xilinx Zynq PYNQ-Z2 (`xc7z020clg400-1`).
-
-**Status:** Phase 0 (Golden Model) ✓ | Phase 1 (HLS Core) ✓ | Phase 2 (Multi-Term) ✓
+This directory contains the PYNQ-Z2 implementation of one programmable SumCheck round over the BN254 scalar field. It is the smallest board-facing version of the design and includes both a BRAM C-simulation interface and an `m_axi` DMA-style interface.
 
 ## Architecture
 
 ```
 hls/
 ├── include/
-│   ├── types.hpp            # BN254 field arithmetic (ap_uint<256>)
-│   ├── update_unit.hpp      # Affine MLE update at verifier challenge r
-│   ├── extension_engine.hpp # Extend MLE pair → d+1 point evaluations
-│   ├── product_lane.hpp     # Per-point product across MLE factors
-│   └── accumulator.hpp      # Round-sample accumulator (d+1 registers)
-├── src/
-│   └── sumcheck_top.cpp     # Top-level one-round orchestration
-├── testbench/
-│   └── tb_sumcheck.cpp      # C-simulation test harness
-├── data/                    # Generated test vectors (from vecgen.py)
-├── run_hls.tcl              # Vitis HLS build script
-├── vecgen.py                # Test vector generator (from golden model)
-├── phase2_acc.py            # Phase 2 multi-term accumulation verification
-└── README.md
+│   ├── types.hpp            # field type, constants, status codes
+│   ├── field_arithmetic.hpp # BN254 add/sub/mul and affine line evaluation
+│   ├── update_unit.hpp      # verifier-challenge table update
+│   ├── extension_engine.hpp # pair extension to d+1 sample points
+│   ├── product_lane.hpp     # pointwise product across MLE factors
+│   ├── accumulator.hpp      # modular accumulation of round samples
+│   └── scratchpad.hpp       # banked scratchpad helper routines
+├── src/sumcheck_top.cpp     # top functions: BRAM array and m_axi DMA
+├── testbench/tb_sumcheck.cpp
+├── run_hls.tcl              # C-sim + synthesis for sumcheck_round_array
+└── run_axi.tcl              # synthesis/IP export for sumcheck_round_axi
 ```
 
-## Dataflow (One Round)
+## One-Round Dataflow
 
-For one product term of degree `d`, per the zkPHIRE paper:
+For one product term of degree `d`:
 
-1. **Load** MLE tables `tables[mle_idx][0..size-1]` into BRAM
-2. **Pair** read `(tables[mle_idx][2k], tables[mle_idx][2k+1])` for each `k`
-3. **Extend** each pair to `d+1` evaluations via affine rule: `f(z) = f0 + (f1-f0)*z`
-4. **Multiply** per-factor extensions pointwise → `d+1` lane products
-5. **Accumulate** lane products over all `size/2` pairs → `d+1` round samples
-6. **Update** each MLE table with verifier challenge `r` → halved tables
+1. Read pair `(tables[m][2k], tables[m][2k+1])` from each MLE factor `m`.
+2. Extend each pair to sample points `z=0..d` using `f(z)=f0+(f1-f0)z`.
+3. Multiply the `d` extensions pointwise to form lane products.
+4. Accumulate lane products over all pairs to produce `samples[0..d]`.
+5. Update each MLE table at verifier challenge `r` to produce `updated[m][k]`.
 
-The shared affine rule is used for both extension (step 3) and update (step 6).
+## Concrete Interfaces
 
-## Quick Start
+### BRAM Array Top
 
-### 1. Verify golden model (Phase 0)
+```cpp
+status_t sumcheck_round_array(
+    const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
+    field_elem_t r,
+    int degree,
+    int size,
+    field_elem_t samples[MAX_SAMPLES],
+    field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
+);
+```
+
+- `tables[m][i]`: input MLE table row `m`, element `i`.
+- `samples[x]`: round polynomial sample at `x`, for `x=0..degree`.
+- `updated[m][k]`: next-round table row `m`, element `k`, with `size/2` active entries.
+- Scalar control registers: `degree`, `size`, `r`, and status return.
+
+### m_axi DMA Top
+
+```cpp
+status_t sumcheck_round_axi(
+    field_elem_t* mle_inputs,
+    int degree,
+    int size,
+    field_elem_t r,
+    field_elem_t* round_samples,
+    field_elem_t* next_tables
+);
+```
+
+Flat memory layout:
+
+| Buffer | Direction | Layout |
+|---|---|---|
+| `mle_inputs` | host -> IP | `mle_inputs[m*size + i] = tables[m][i]` |
+| `round_samples` | IP -> host | `round_samples[x] = samples[x]`, `x=0..degree` |
+| `next_tables` | IP -> host | `next_tables[m*(size/2) + k] = updated[m][k]` |
+
+See [`../docs/interface-contract.md`](../docs/interface-contract.md) for status codes and host driving sequence.
+
+## Verification
+
+`testbench/tb_sumcheck.cpp` is self-checking and covers deterministic SPEC targets:
+
+| Case | Expression | Expected |
+|---|---|---|
+| A | `x1*x2*x3` | first-round samples `[0,1,2,3]`, chain `(5,7,11) -> 385` |
+| A edge | `x1*x2*x3` | `r=0` selects even entries, `r=1` selects odd entries |
+| B | `x1*x2`, `x2*x3` | individual term samples pass |
+| B combined | `x1*x2 + x2*x3` | combined samples `[1,3,5]` |
+
+Latest C-sim and synthesis evidence is stored in [`../docs/verification/`](../docs/verification/).
+
+## Build Commands
+
+On the NYU ECE server after VPN:
+
 ```bash
-python3 ../golden_sumcheck.py --test
+cd ~/zkphire/hls
+/eda/xilinx/Vitis_HLS/2023.2/bin/vitis_hls -f run_hls.tcl
+/eda/xilinx/Vitis_HLS/2023.2/bin/vitis_hls -f run_axi.tcl
 ```
 
-### 2. Generate test vectors
-```bash
-python3 vecgen.py --all
-```
+## Known Resource Limitation
 
-### 3. Run Vitis HLS C-simulation
-```bash
-# On the ECE server (ecs02-06.poly.edu) after connecting via NYU VPN:
-cd fp_zkphire/hls
-vitis_hls -f run_hls.tcl
-```
-
-### 4. Verify multi-term accumulation (Phase 2)
-```bash
-python3 phase2_acc.py
-```
-
-## Deterministic Test Targets
-
-Per SPEC Section 8:
-
-| Case | Expression | Challenges | Round 1 samples | Final |
-|------|-----------|------------|-----------------|-------|
-| A | x1·x2·x3 | (5, 7, 11) | [0, 1, 2, 3] | 385 |
-| B | x1·x2 + x2·x3 | (5, 7, 11) | [1, 3, 5] | 112 |
-| C | deg-4 Fig.1 term | r=5 | — | — |
-
-## Field Arithmetic (BN254)
-
-- Prime: `21888242871839275222246405745257275088548364400416034343698204186575808495617`
-- Element width: 256 bits (`ap_uint<256>`)
-- Multiplication: 512-bit intermediate → modulo reduction
-- All operations are bit-exact with Python golden model
-
-## Development Phases
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 0 | Golden model + deterministic regressions | ✓ Complete |
-| 1 | Functional HLS one-round core | ✓ Complete |
-| 2 | Multi-term accumulation | ✓ Complete |
-| 3 | Paper-aligned optimizations (pipelining, lanes) | Pending |
-| 4 | PYNQ/board integration (AXI, DMA) | Pending |
-
-## Synthesis Targets
-
-- **Board:** PYNQ-Z2 (`xc7z020clg400-1`)
-- **Clock:** 100 MHz (10 ns period)
-- **Degree:** up to 6 (first milestone)
-- **DSP budget:** < 180
-- **BRAM budget:** < 80%
-
-## Invariants Verified
-
-1. `s(0) + s(1)` = claimed sum over full table
-2. Updated table claim = `s(r)`
-3. Table size halved exactly
-4. `r=0` selects even entries, `r=1` selects odd entries
-5. Full protocol chain collapses to correct final scalar
+The PYNQ-Z2 has 220 DSPs. Direct BN254 modular multiplication (`ap_uint<512> % FIELD_P`) is functionally correct but tight on DSP budget. The larger RFSoC version in `../hls_rfsoc/` demonstrates the multi-PE architecture within a realistic larger-board resource budget.

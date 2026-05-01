@@ -72,7 +72,7 @@ static bool check_chain(const char* name,
 
 int main() {
     int p = 0, t = 0;
-    printf("=== zkPHIRE RFSoC C-Simulation ===\n\n");
+    printf("=== zkPHIRE SumCheck C-Simulation ===\n\n");
 
     // Case A: x1*x2*x3 r=5
     {
