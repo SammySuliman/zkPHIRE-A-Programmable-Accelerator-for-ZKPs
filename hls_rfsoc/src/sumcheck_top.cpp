@@ -66,23 +66,36 @@ static void multi_pe_sumcheck(
     int deg = degree;
     if (deg > MAX_DEGREE) deg = MAX_DEGREE;
     const int pair_count = size / 2;
-    const int pairs_per_pe = pair_count / NUM_PES;
+    int eff_pes = NUM_PES;
+    if (pair_count < NUM_PES) eff_pes = pair_count;
+    const int pairs_per_pe = pair_count / eff_pes;
+    const int remainder = pair_count % eff_pes;
 
     field_elem_t pe_all_samples[NUM_PES][MAX_SAMPLES];
     field_elem_t sp[SCRATCHPAD_BANKS][SCRATCHPAD_DEPTH];
 #pragma HLS ARRAY_PARTITION variable=pe_all_samples complete dim=1
 #pragma HLS ARRAY_PARTITION variable=sp complete dim=1
 
-    // Load scratchpad once for all PEs
     for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
 #pragma HLS PIPELINE II=1
         scratchpad_load(sp, m, tables[m], size);
     }
 
-    for (int pe = 0; pe < NUM_PES; ++pe) {
+    for (int pe = 0; pe < eff_pes; ++pe) {
 #pragma HLS UNROLL
-        pe_sumcheck_round(tables, deg, pe * pairs_per_pe,
-                          pairs_per_pe, sp, pe_all_samples[pe]);
+        int start = pe * pairs_per_pe;
+        int count = pairs_per_pe + ((pe < remainder) ? 1 : 0);
+        if (count > 0) {
+            pe_sumcheck_round(tables, deg, start, count, sp, pe_all_samples[pe]);
+        } else {
+            for (int x = 0; x <= deg; ++x) pe_all_samples[pe][x] = field_elem_t(0);
+        }
+    }
+    // Zero unused PE samples
+    for (int pe = eff_pes; pe < NUM_PES; ++pe) {
+        for (int x = 0; x <= deg; ++x)
+#pragma HLS PIPELINE II=1
+            pe_all_samples[pe][x] = field_elem_t(0);
     }
 
     field_elem_t combined[MAX_SAMPLES];
