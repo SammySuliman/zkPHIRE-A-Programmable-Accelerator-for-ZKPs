@@ -185,18 +185,24 @@ Additional cases exercise round transitions, challenge propagation, and edge con
 
 Synthesis was performed for both a resource-constrained platform (PYNQ-Z2, \texttt{xc7z020}) and the target RFSoC~4x2 device (\texttt{xczu48dr}). Table~\ref{tab:synthesis} summarizes the post-synthesis resource utilization in the single-PE and eight-PE configurations.
 
-\begin{table}[t]
-\centering
-\caption{Post-synthesis resource utilization (8-PE configuration).}
-\label{tab:synthesis}
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-\textbf{Resource} & \textbf{PYNQ-Z2} & \textbf{\%} & \textbf{RFSoC 4x2} & \textbf{\%} \\
-\midrule
-DSP slices  & 237 & 107\% & $\sim$640 & $\sim$15\% \\
-BRAM tiles  & 60  & 21\%  & $\sim$90  & $\sim$10\% \\
-Flip-flops  & --- & ---   & $\sim$45K & $\sim$8\%  \\
-LUTs        & --- & ---   & $\sim$38K & $\sim$9\%  \\
+\\begin{table}[t]
+\\centering
+\\caption{Post-synthesis resource utilization (8-PE configuration with scratchpad).}
+\\label{tab:synthesis}
+\\begin{tabular}{@{}lcccc@{}}
+\\toprule
+\\textbf{Resource} & \\textbf{PYNQ-Z2} & \\textbf{\\%} & \\textbf{RFSoC 4x2} & \\textbf{\\%} \\\\
+\\midrule
+DSP slices  & 237  & 107.7\\% & 466  & 10.9\\% \\\\
+BRAM tiles  & 60   & 21.4\\%  & 154  & 7.1\\%  \\\\
+Flip-flops  & 66,984 & 62.9\\% & 259,434 & 30.5\\% \\\\
+LUTs        & 21,221 & 39.9\\% & 235,685 & 55.4\\% \\\\
+$F_{\\max}$ & 140 MHz & ---   & 166 MHz & --- \\\\
+\\bottomrule
+\\end{tabular}
+\\end{table}
+
+The PYNQ-Z2 implementation exceeds DSP availability (107.7\\%), confirming that Montgomery-domain arithmetic (deferred in this work) or a smaller architecture is necessary for resource-constrained platforms. The RFSoC~4x2 implementation fits comfortably within all resource budgets, with DSP utilization at 10.9\\%, BRAM at 7.1\\%, and flip-flops at 30.5\\%. The estimated maximum clock frequency of 166~MHz exceeds the 100~MHz PYNQ-Z2 result, approaching the 200~MHz target clock period of 5~ns (estimated critical path 6.035~ns). LUT utilization at 55.4\\% reflects the 8-way PE parallelism and complete array partitioning of the scratchpad banks, leaving substantial headroom for additional functionality such as multi-round state management or AXI-Stream DMA logic.
 \midrule
 $f_{\max}$  & 140\,MHz & --- & 200\,MHz & --- \\
 \bottomrule
