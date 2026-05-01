@@ -1,231 +1,199 @@
 \documentclass[conference]{IEEEtran}
-\usepackage{cite}
-\usepackage{amsmath,amssymb}
-\usepackage{graphicx}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
-\usepackage{booktabs}
-\usepackage{hyperref}
+\usepackage{cite,amsmath,amssymb,graphicx,algorithm,algpseudocode,booktabs,hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,shapes.multipart,arrows.meta,positioning,calc,fit,backgrounds}
 
 \title{A Programmable SumCheck Accelerator for Zero-Knowledge Proofs on FPGA}
 \author{Ashesh Kaji\\New York University}
 
+\begin{document}
+\maketitle
+
 \begin{abstract}
-Zero-knowledge proof systems impose severe computational demands on prover hardware, with the SumCheck protocol representing the dominant bottleneck in modern multilinear proof frameworks. We present a programmable, one-round SumCheck hardware accelerator targeting the BN254 scalar field, implemented in synthesizable C++ and deployed on the Xilinx RFSoC~4x2 FPGA. The architecture employs Montgomery modular arithmetic with eight parallel processing elements, sixteen scratchpad buffer banks, and a dataflow pipeline mirroring the zkPHIRE system architecture. A Python golden model provides bit-exact C-simulation verification across eight deterministic test cases, confirming correctness for multilinear extension evaluations with up to sixteen product factors. Synthesis results demonstrate feasible resource utilization, and we discuss scaling behavior from a single processing element to the full eight-element configuration alongside constraints observed on the resource-limited PYNQ-Z2 platform.
+Zero-Knowledge Proofs (ZKPs) enable privacy-preserving computation but impose severe computational overhead during proof generation. The SumCheck protocol, a core primitive in modern ZKP systems such as HyperPlonk, dominates prover runtime when supporting high-degree custom gates. This work presents an FPGA-based hardware accelerator for a single programmable SumCheck round operating over the BN254 scalar field. The architecture employs eight parallel processing elements, each containing an Extension Engine, Product Lane, Accumulator, and Update Unit, fed by sixteen on-chip scratchpad buffer banks. Modular arithmetic uses the native \texttt{ap\_uint<256>} divider, deferring Montgomery-domain optimization to future work. The design is verified bit-exact against a Python golden model across seven deterministic test cases including multi-term accumulation. Synthesis on a Xilinx RFSoC~4x2 (xczu48dr) at 200~MHz achieves 10.9\% DSP, 7.1\% BRAM, and 30.5\% flip-flop utilization, demonstrating feasibility for integration into a full ZKP prover pipeline.
 \end{abstract}
 
 \section{Introduction}
 
-Zero-knowledge proofs (ZKPs) have emerged as a foundational primitive for verifiable computation, enabling resource-constrained verifiers to delegate expensive computations to untrusted provers while retaining cryptographic assurance of correctness. Recent advances in multilinear polynomial commitment schemes---such as \textsc{HyperPlonk}~\cite{chen2022hyperplonk} and Spartan~\cite{setty2020spartan}---have driven prover performance toward practical deployment in blockchain and privacy-preserving applications. Despite these advances, the prover's computational burden remains substantial, often requiring minutes to hours of execution on server-class hardware for moderately sized circuits.
+Zero-Knowledge Proofs have emerged as a powerful primitive for secure and privacy-preserving computation, with applications spanning blockchain, machine learning, and verifiable computing~\cite{setty2020spartan}. Despite their promise, ZKPs have seen limited deployment due to exceptionally high computational overhead, which manifests primarily during proof generation. A growing body of work has proposed hardware accelerators to mitigate these costs~\cite{zkphire2026}.
 
-The SumCheck protocol~\cite{lund1992algebraic} constitutes the central workhorse within these multilinear proof systems. A single SumCheck invocation requires evaluating a multilinear extension (MLE) across all points of a Boolean hypercube of dimension~$d$, where $d$ scales with the number of variables in the polynomial. When the polynomial is composed from high-degree custom gate products---common in \textsc{Plonk}-style arithmetization~\cite{gabizon2019plonk}---the evaluation cost per hypercube point involves computing a product over multiple MLE table lookups, each requiring an affine evaluation rule that interpolates between two adjacent table entries. For circuits with hundreds of thousands of gates, these evaluations easily dominate prover runtime.
+Modern ZKP protocols such as HyperPlonk~\cite{chen2022hyperplonk} rely on the SumCheck protocol~\cite{lund1992algebraic} to achieve linear prover time. SumCheck reduces the problem of verifying $N$ constraints to checking a single randomized evaluation, but its iterative nature and intensive intermediate data movement create severe bottlenecks in software implementations. Furthermore, the trend toward high-degree custom gates---which can reduce total gate count by up to $32\times$---greatly increases the complexity of each SumCheck round by requiring more extensions, more multiplications, and more irregular memory access patterns.
 
-General-purpose CPUs and GPUs suffer from irregular memory access patterns and branch-heavy control flow inherent to MLE evaluation across the hypercube. The affine evaluation rule, while mathematically simple, introduces sequential data dependencies that resist vectorization. Consequently, custom hardware acceleration for SumCheck has attracted growing research interest. The zkPHIRE architecture~\cite{zkphire2026} proposes a modular, programmable FPGA-based accelerator design organized around processing elements (PEs) that operate on MLE table tiles, with scratchpad buffering to decouple memory latency from computation.
-
-This work describes the implementation of a one-round SumCheck accelerator following the zkPHIRE architectural template. The design targets the BN254 scalar field, a pairing-friendly curve widely used in production ZKP systems. We employ Montgomery modular arithmetic~\cite{montgomery1985modular} to avoid expensive integer division during field multiplication, implement eight parallel PEs connected via a dataflow pipeline, and allocate sixteen on-chip scratchpad buffers matching the reference architecture. A Python golden model produces reference outputs for bit-exact verification in C-simulation, and we report synthesis results on the Xilinx RFSoC~4x2 platform. The accelerator supports programmable configurations with up to sixteen product factors per gate, capturing a broad class of custom-gate arithmetizations.
+This work presents a programmable, FPGA-based accelerator for one round of the SumCheck protocol. The architecture mirrors the zkPHIRE reference design~\cite{zkphire2026} at a reduced scale suitable for the RFSoC~4x2 platform. The key contributions are: (1)~a pipelined eight-PE datapath with sixteen scratchpad buffer banks; (2)~bit-exact verification against a Python golden model across seven deterministic test cases; and (3)~a dual-interface design supporting both BRAM-based simulation and AXI-based deployment.
 
 \section{Background}
 
-\subsection{The SumCheck Protocol}
+\subsection{SumCheck Protocol}
 
-The SumCheck protocol is an interactive proof in which a prover $\mathcal{P}$ convinces a verifier $\mathcal{V}$ of the value
-\begin{equation}
-H = \sum_{\vec{x} \in \{0,1\}^d} g(\vec{x})
-\label{eq:sumcheck-claim}
-\end{equation}
-where $g : \mathbb{F}^d \to \mathbb{F}$ is an $\ell$-variate multilinear polynomial over a finite field $\mathbb{F}$. The protocol proceeds in $d$ rounds. In each round~$i$, the verifier sends a random challenge $r_i \in \mathbb{F}$, and the prover responds with a univariate polynomial $q_i(t)$ defined by partially evaluating $g$ on the prefix $(r_1, \dots, r_{i-1})$ and summing over the suffix variables:
-\begin{equation}
-q_i(t) = \sum_{\vec{x} \in \{0,1\}^{d-i}} g(r_1, \dots, r_{i-1}, t, \vec{x}).
-\label{eq:round-polynomial}
-\end{equation}
-The degree of $q_i$ equals the degree of $g$ in its $i$-th variable. The verifier checks that $q_{i-1}(r_{i-1}) = q_i(0) + q_i(1)$ and, after the final round, confirms that $q_d(r_d)$ matches a single evaluation of $g$ at the point $\vec{r} = (r_1, \dots, r_d)$.
+The SumCheck protocol enables a prover to convince a verifier that the sum of a multivariate polynomial $f(X_1,\dots,X_\mu)$ over the Boolean hypercube $\{0,1\}^\mu$ equals a claimed value $C$. In each of $\mu$ rounds, the prover sends a univariate polynomial $s_i(X_i)$ defined as:
 
-In a one-round hardware accelerator, a single round of the protocol is executed under a fixed partial assignment of challenge values to the first $(i-1)$ variables. The accelerator receives the current MLE table state, the round challenge $r_i$, and the specification of $g$ as a product over table factors; it outputs the univariate polynomial $q_i(t)$ and the updated MLE tables for the next round.
+\begin{equation}
+s_i(X_i) = \sum_{x_{i+1}\in\{0,1\}}\cdots\sum_{x_\mu\in\{0,1\}} f(r_1,\dots,r_{i-1},X_i,x_{i+1},\dots,x_\mu)
+\end{equation}
+
+The verifier checks that $s_i(0)+s_i(1)$ matches the claim from the previous round and responds with a random challenge $r_i \in \mathbb{F}$. After $\mu$ rounds, the verifier evaluates $f(r_1,\dots,r_\mu)$ to check consistency.
 
 \subsection{Multilinear Extensions and Custom Gates}
 
-A multilinear extension $\tilde{f} : \mathbb{F}^\ell \to \mathbb{F}$ of a function $f : \{0,1\}^\ell \to \mathbb{F}$ is the unique multilinear polynomial agreeing with $f$ on the Boolean hypercube. Given a table $T$ of size $2^\ell$ storing evaluations of $f$ in lexicographic order, $\tilde{f}(\vec{x})$ can be computed via the Lagrange-basis representation:
-\begin{equation}
-\tilde{f}(\vec{x}) = \sum_{\vec{b} \in \{0,1\}^\ell} T[\vec{b}] \cdot \prod_{j=1}^{\ell} \chi_{b_j}(x_j)
-\label{eq:lagrange-mle}
-\end{equation}
-where $\chi_0(x) = 1 - x$ and $\chi_1(x) = x$ are the Lagrange selector polynomials.
+Each variable in the constraint polynomial is stored as a multilinear extension (MLE) table. The MLE of a variable $x_j$ is a function $t_j:\{0,1\}^\mu\to\mathbb{F}$ where $t_j(b_1,\dots,b_\mu)$ returns the value of $x_j$ under the Boolean assignment $(b_1,\dots,b_\mu)$. After each round, the prover updates each MLE table with the verifier's challenge using the affine rule:
 
-For any prefix of assigned variables $(r_1, \dots, r_{i-1})$, the MLE admits an affine evaluation rule that expresses the partially-evaluated MLE at the next variable position in terms of two table entries:
 \begin{equation}
-\tilde{f}(r_1, \dots, r_{i-1}, t, x_{i+1}, \dots) = (1 - t) \cdot A + t \cdot B
-\label{eq:affine-rule}
+\tilde{t}(r_1, X_2,\dots,X_\mu) = \tilde{t}(0, X_2,\dots) \cdot (1-r_1) + \tilde{t}(1, X_2,\dots) \cdot r_1
 \end{equation}
-where $A$ and $B$ are the two entries in the current MLE table pair corresponding to $t = 0$ and $t = 1$, respectively. This rule propagates through the entire table, reducing its size by half in each round.
 
-Custom gates in \textsc{Plonk}-style arithmetization~\cite{gabizon2019plonk} compose multiple MLE factors into a single constraint polynomial. For instance, a degree-2 gate computing $x_1 \cdot x_2 + x_3$ forms the product
+This same affine rule is employed for both MLE updates (with challenge $r_i$) and extension evaluations (with integer points $0,\dots,d$), a property exploited in the hardware architecture. Custom gates compose multiple MLE factors via products and sums. For a gate with $d$ multiplicative factors, $d+1$ evaluations are required per MLE pair per round.
+
+The composite Plonk gate~\cite{gabizon2019plonk} serves as a concrete example:
 \begin{equation}
-g(\vec{x}) = \tilde{T}_1(\vec{x}) \cdot \tilde{T}_2(\vec{x}) + \tilde{T}_3(\vec{x})
-\label{eq:plonk-gate}
+f_{\text{plonk}} = q_L w_1 + q_R w_2 + q_M w_1 w_2 - q_O w_3 + q_C
 \end{equation}
-where each $\tilde{T}_k$ is the MLE of a witness or selector column. In general, a gate may involve up to $K$ product factors, each consisting of a subset of table factors multiplied together. The accelerator handles this composition by computing per-point products across factor MLEs before accumulation.
+where $q_i$ are selector polynomials and $w_i$ are witness polynomials, each stored as an MLE table.
 
 \section{Architecture}
 
-\subsection{Montgomery Modular Arithmetic}
+The accelerator implements one programmable SumCheck round for a single product term of degree $d \leq K_{\max}$, where $K_{\max}=6$ is a compile-time constant. The architecture consists of $N_{\mathrm{PE}}=8$ processing elements (PEs), sixteen on-chip scratchpad buffer banks, and a reduction tree for combining partial results.
 
-All field operations are performed in the Montgomery domain~\cite{montgomery1985modular} to eliminate integer division from modular multiplication. The BN254 scalar field is defined by the 254-bit prime
+\subsection{Modular Arithmetic}
+
+All arithmetic operates over the BN254 scalar field:
 \begin{equation}
-p = 21888242871839275222246405745257275088548364400416034343698204186575808495617.
-\label{eq:bn254-prime}
+p = \texttt{0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001}
 \end{equation}
-Let $R = 2^{256}$ be the Montgomery radix; then $\gcd(R, p) = 1$ by construction. An element $x \in \mathbb{F}_p$ is represented in Montgomery form as $\hat{x} = xR \bmod p$. Multiplication in the Montgomery domain proceeds via the function $\texttt{mon\_mul}(\hat{a}, \hat{b})$:
+The field prime is 254 bits wide; operands are represented as \texttt{ap\_uint<256>} for alignment. Modular multiplication uses the native hardware divider:
 \begin{equation}
-\hat{c} = \hat{a} \cdot \hat{b} \cdot R^{-1} \bmod p
-\label{eq:mon-mul}
+\texttt{mod\_mul}(a,b) = (a \cdot b) \bmod p
 \end{equation}
-which is computed without division using the REDC algorithm:
-\begin{equation}
-Q = ((\hat{a} \cdot \hat{b}) \bmod R) \cdot p' \bmod R, \quad \hat{c} = \frac{\hat{a} \cdot \hat{b} + Q \cdot p}{R}
-\label{eq:redc}
-\end{equation}
-where $p' = -p^{-1} \bmod R = \texttt{0x73f82f1d0d8341b2e39a9828990623916586864b4c6911b3c2e1f593efffffff}$. The final subtraction of $p$ in the conditional reduction step is required only when the intermediate result exceeds $p$. Addition and subtraction in $\mathbb{F}_p$ are Montgomery-transparent: $\hat{a} \pm \hat{b} = (a \pm b)R \bmod p$, so no format conversion is needed between these operations.
+A shared multiplier instance is enforced via \texttt{\#pragma HLS ALLOCATION} to limit DSP replication. Addition and subtraction use conditional correction without branching. All intermediate accumulators and product lanes operate in regular domain; Montgomery-domain arithmetic~\cite{montgomery1985modular} is deferred to future work, as the RFSoC~4x2's 4,272 DSP slices provide sufficient headroom for the divider-based approach.
 
 \subsection{Processing Element}
 
-Each processing element (PE) is organized into four functional stages connected by a dataflow pipeline:
+Each PE implements the zkPHIRE datapath (Figure~\ref{fig:architecture}):
 
-\paragraph{Extension Engine.}
-Given a pair of 256-bit MLE table entries $(A, B)$ and the current round variable $t \in \{0, 1, r_i\}$, the Extension Engine evaluates the affine rule of Equation~\ref{eq:affine-rule}. Specifically, it computes the three required evaluations:
-\begin{align}
-E_0 &= A & (\text{for } t = 0) \label{eq:eval0}\\
-E_1 &= B & (\text{for } t = 1) \label{eq:eval1}\\
-E_{r_i} &= A + r_i \cdot (B - A) & (\text{for } t = r_i) \label{eq:evals}
-\end{align}
-using field operations in the Montgomery domain. For rounds~2 and beyond, only $E_{r_i}$ is computed (since $E_0, E_1$ are already available from prior rounds); the Extension Engine then delivers either two or four values per MLE pair depending on the round index.
+\begin{itemize}
+\item \textbf{Extension Engine:} For a pair $(f_0, f_1)$ from an MLE table, compute $d+1$ evaluations using the affine rule $f_0 + (f_1-f_0) \cdot x$ for $x \in \{0,\dots,d\}$.
+\item \textbf{Product Lane:} For each evaluation point $x$, multiply the extension values across all $d$ MLE factors to form the per-point product $\prod_j \text{ext}_j[x]$.
+\item \textbf{Accumulator:} Sum the per-pair products across all $N/2$ pairs of the MLE table to produce the $d+1$ round samples $s(0),\dots,s(d)$.
+\item \textbf{Update Unit:} Update each MLE table using the verifier challenge $r$ via the affine rule, producing a halved table for the next round.
+\end{itemize}
 
-\paragraph{Product Lane.}
-For each hypercube point, the Product Lane computes the product of the $E_{r_i}$ evaluations across all MLE factors participating in the gate. A programmable factor mask selects which of the up to $K$ maximum factors are active, enabling runtime reconfiguration of gate degree without hardware modification. The product is accumulated in a running sum using a multiply-accumulate structure with field addition.
-
-\paragraph{Accumulator.}
-The Accumulator maintains the per-round sum over the hypercube for each evaluation point. After all tile rows have been processed, the accumulator holds the coefficients of $q_i(t)$ as required by Equation~\ref{eq:round-polynomial}. These coefficients are read out through the output interface and constitute the prover's round message.
-
-\paragraph{Update Unit.}
-After computing the round evaluations, the Update Unit applies the verifier's challenge $r_i$ to produce the updated MLE table for the next round. Given a pair $(A, B)$ and the challenge $r$, it writes back the single entry $B' = A + r \cdot (B - A)$, reducing the table dimension by one. This updated table is stored back to the scratchpad for the subsequent round.
-
-\subsection{Multi-PE Architecture}
-
-The full accelerator instantiates eight identical PEs operating in parallel. MLE table tiles are distributed across PEs in a row-interleaved fashion: PE~$k$ processes tile rows $k, k+8, k+16, \dots$ of the hypercube sweep. This partitioning balances the load across PEs and requires minimal inter-PE communication, as each PE operates independently on its assigned tile subset.
-
-Sixteen on-chip scratchpad banks---implemented via block RAM (BRAM)---supply MLE table data to the PEs. Each bank holds one tile of an MLE factor; with sixteen banks, the architecture supports concurrent access to multiple factors during product-lane accumulation. The banking scheme is organized such that PEs access disjoint banks per cycle, avoiding structural hazards in the memory pipeline.
-
-In the first round, each MLE factor contributes exactly two values per hypercube point, and the Extension Engine produces $E_0$ and $E_1$. In round~2 and subsequent rounds, the table size is halved after each round, and the Extension Engine pipelines four values per MLE pair. Figure~\ref{fig:architecture} illustrates the top-level organization.
+The PEs are instantiated with \texttt{\#pragma HLS UNROLL}, enabling parallel execution across disjoint tile ranges. An adaptive dispatch mechanism handles cases where the number of MLE table pairs is smaller than $N_{\mathrm{PE}}$, ensuring correctness for small problem sizes.
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.85\columnwidth}{
-\vspace{1.5cm}
-\begin{center}
-\textbf{[Architecture Diagram: 8\,PEs $\times$ 16\,Scratchpad Banks]}
-\end{center}
-\vspace{0.3cm}
-\footnotesize
-MLE tiles flow from DRAM through DMA into scratchpad banks (BRAM). Eight PEs consume tile rows in parallel via a dataflow pipeline. Each PE instantiates Extension Engine $\to$ Product Lane $\to$ Accumulator $\to$ Update Unit. Round output $q_i(t)$ and updated MLE tables are streamed back through DMA.
-\vspace{1.5cm}
-}}
-\caption{Top-level SumCheck accelerator architecture.}
+\begin{tikzpicture}[
+    node distance=0.5cm and 0.3cm,
+    spbox/.style={rectangle,draw=black,fill=green!10,minimum width=12cm,minimum height=0.55cm,font=\footnotesize},
+    pebox/.style={rectangle,draw=black,fill=blue!5,minimum width=1.0cm,minimum height=2.2cm,font=\tiny},
+    subbox/.style={rectangle,draw=black!50,fill=white,minimum width=0.85cm,minimum height=0.35cm,font=\tiny\sffamily},
+    arr/.style={-{Stealth[scale=0.6]},line width=0.3pt},
+    darr/.style={-{Stealth[scale=0.8]},line width=0.8pt,draw=black!70},
+    lbl/.style={font=\tiny,text=black!50},
+]
+
+% Scratchpad
+\node[spbox] (sp) at (0,2.5) {Scratchpad: 16 BRAM Banks};
+
+% 8 PEs
+\foreach \i in {0,1,2,3,4,5,6,7} {
+    \pgfmathtruncatemacro{\x}{(\i-3.5)*1.3}
+    \node[pebox,label=below:{\tiny PE\i}] (pe\i) at (\x, 0.3) {};
+    \draw[arr] (sp.south) -- ++(0,-0.1) -| (pe\i.north);
+}
+
+% Reduction tree
+\node[rectangle,draw=black,fill=yellow!10,minimum width=12cm,minimum height=0.5cm,font=\footnotesize] (red) at (0,-1.6) {Reduction Tree: Combine 8 PE Samples};
+\foreach \i in {0,...,7} {
+    \draw[arr] (pe\i.south) -- (pe\i.south |- red.north);
+}
+
+% Output
+\node[rectangle,draw=black,fill=red!5,minimum width=8cm,minimum height=0.5cm,font=\footnotesize] (out) at (0,-2.6) {Round Samples $s(0\ldots d)$ and Updated Tables};
+\draw[darr] (red.south) -- (out.north);
+
+% Data flow labels
+\node[lbl,above=0.1cm of sp] {MLE Tile Data (pair-major order)};
+
+% Legend
+\node[rectangle,draw=black!50,fill=white,minimum width=6cm,font=\tiny,align=left] (leg) at (0,-3.5) {
+    Each PE: Extension Engine $\to$ Product Lane $\to$ Accumulator $\to$ Update Unit\\
+    Tables loaded once; PEs process disjoint pair ranges in parallel
+};
+
+\end{tikzpicture}
+\caption{Top-level accelerator architecture. Eight processing elements consume MLE table tiles from sixteen scratchpad banks. A reduction tree combines per-PE partial samples. The update unit writes halved MLE tables for the next round.}
 \label{fig:architecture}
 \end{figure}
+
+\subsection{Multi-PE Orchestration}
+
+The eight PEs process disjoint tile ranges in parallel. For a table of $N/2$ pairs, each PE receives $\lfloor N/(2N_{\mathrm{PE}})\rfloor$ pairs, with remainder pairs distributed across the first few PEs. When $N/2 < N_{\mathrm{PE}}$, the effective PE count is reduced to match the available parallelism. A reduction tree sums the per-PE round samples to produce the final $d+1$ output values. The MLE update is performed once at the top level, avoiding duplicate writes from multiple PEs.
+
+Sixteen on-chip scratchpad banks---implemented via block RAM (BRAM)---supply MLE table data to the PEs. Each bank holds one tile of an MLE factor; the complete set of tables is loaded once at the start of computation via a \texttt{scratchpad\_load} function, then accessed by all PEs during the pair loop via \texttt{scratchpad\_read\_pair}. The banking scheme is organized such that PEs access disjoint banks per cycle, avoiding structural hazards.
 
 \section{Implementation}
 
 \subsection{HLS Design Flow}
 
-The design is captured in synthesizable C++ using Vivado HLS. All field elements are represented as \texttt{ap\_uint<256>} to precisely model 256-bit operands in the Montgomery domain. The dual-interface design supports both standalone verification and deployment:
+The design is captured in synthesizable C++ using Vitis HLS 2023.2. All field elements are represented as \texttt{ap\_uint<256>}. The dual-interface design supports both standalone verification and deployment:
 
 \begin{itemize}
-\item \textbf{BRAM interface:} For C-simulation, data is read from and written to on-chip memory arrays. This mode enables rapid functional verification with minimal tool overhead.
-\item \textbf{AXI-Stream interface:} For synthesis and deployment, the accelerator connects to a DMA engine via AXI4-Stream, enabling direct data transfer from host DRAM to the scratchpad buffers and results back to the host.
+\item \texttt{sumcheck\_round\_array}: BRAM interface with AXI-Lite control registers. Used for C-simulation and functional verification. Tables, samples, and updated tables are passed as multi-dimensional arrays with complete partitioning pragmas.
+\item \texttt{sumcheck\_round\_axis}: AXI-Stream interface (planned) for DMA-based host communication, enabling integration into a PYNQ or embedded Linux overlay.
 \end{itemize}
 
-The target device is the Xilinx RFSoC~4x2 (\texttt{xczu48dr}), operating at a target clock frequency of 200~MHz. Synthesis directives include loop pipelining with initiation interval~II~=~1 on the innermost hypercube-sweep loop, array partitioning on scratchpad banks to expose parallel access, and dataflow region specification on the PE pipeline.
+Compile-time parameters control the degree limit ($K_{\max}=6$), maximum table size ($N_{\max}=256$), number of PEs ($N_{\mathrm{PE}}=8$), and number of scratchpad banks ($N_{\mathrm{bank}}=16$). The IP catalog export targets the \texttt{xczu48dr-ffvg1517-2-e} device at a 200~MHz (5~ns) clock constraint.
 
-Key compile-time parameters controlling the design are summarized in Table~\ref{tab:params}.
+\subsection{Verification Strategy}
 
-\begin{table}[t]
-\centering
-\caption{Compile-time accelerator parameters.}
-\label{tab:params}
-\begin{tabular}{@{}lrl@{}}
-\toprule
-\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
-\midrule
-Field bit-width          & $w$            & 256 \\
-Montgomery radix         & $R$            & $2^{256}$ \\
-Maximum degree (factors) & $K_{\max}$     & 16 \\
-Number of PEs            & $N_{\mathrm{PE}}$ & 8 \\
-Scratchpad banks         & $N_{\mathrm{bank}}$ & 16 \\
-Target frequency         & $f_{\max}$     & 200\,MHz \\
-\bottomrule
-\end{tabular}
-\end{table}
+A Python reference model computes expected values for all intermediate signals using deterministic test data. The model implements the affine evaluation rule, product-lane accumulation, and MLE update logic in exact agreement with the C++ implementation. Bit-exactness is enforced at the field-element granularity.
 
-\subsection{Verification}
-
-A Python reference model computes the expected values of all intermediate signals using deterministic random test vectors seeded from a fixed value. The model implements the full Montgomery arithmetic, the affine evaluation rule, the product-lane accumulation, and the MLE update logic in exact agreement with the C++ implementation. Bit-exactness is enforced at the field-element granularity: every Montgomery-multiply output, every extension-engine evaluation, and every accumulator update must match the Python reference exactly.
-
-Eight test cases derived from the accelerator specification exercise distinct operational scenarios:
+Seven test cases derived from the accelerator specification exercise distinct operational scenarios:
 
 \begin{itemize}
-\item \textbf{Case A:} Single MLE factor, round~1, verifying the Extension Engine's affine interpolation.
-\item \textbf{Case B:} Two MLE factors with a product gate ($g = \tilde{T}_1 \cdot \tilde{T}_2$), round~1, verifying the Product Lane and Accumulator.
-\item \textbf{Case C:} Three MLE factors with a multi-term gate ($g = \tilde{T}_1 \cdot \tilde{T}_2 + \tilde{T}_3$), verifying accumulation across product terms.
+\item \textbf{Case A} ($x_1 \cdot x_2 \cdot x_3$, round~1, challenges $r \in \{0,1,5\}$): Verifies the Extension Engine's affine interpolation. Expected samples: $[0,1,2,3]$.
+\item \textbf{Case A chain} ($r_1=5, r_2=7, r_3=11$): Full three-round protocol chain collapsing to final scalar 385.
+\item \textbf{Case B} ($x_1 \cdot x_2$ and $x_2 \cdot x_3$, round~1): Individual two-factor terms. Expected samples: $[1,1,1]$ and $[0,2,4]$.
+\item \textbf{Case B combined}: Multi-term accumulation $x_1 \cdot x_2 + x_2 \cdot x_3$. Expected combined samples: $[1,3,5]$.
 \end{itemize}
-
-Additional cases exercise round transitions, challenge propagation, and edge conditions including all-zero and all-one tables. Multi-term accumulation correctness was confirmed on the test vector $x_1 \cdot x_2 + x_2 \cdot x_3$, which produces the expected output sequence $[1, 3, 5]$ for appropriately chosen table entries.
 
 \section{Results}
 
 \subsection{Synthesis}
 
-Synthesis was performed for both a resource-constrained platform (PYNQ-Z2, \texttt{xc7z020}) and the target RFSoC~4x2 device (\texttt{xczu48dr}). Table~\ref{tab:synthesis} summarizes the post-synthesis resource utilization in the single-PE and eight-PE configurations.
+Synthesis was performed for both a resource-constrained platform (PYNQ-Z2, \texttt{xc7z020}) and the target RFSoC~4x2 device (\texttt{xczu48dr}). Table~\ref{tab:synthesis} summarizes the post-synthesis resource utilization.
 
-\\begin{table}[t]
-\\centering
-\\caption{Post-synthesis resource utilization (8-PE configuration with scratchpad).}
-\\label{tab:synthesis}
-\\begin{tabular}{@{}lcccc@{}}
-\\toprule
-\\textbf{Resource} & \\textbf{PYNQ-Z2} & \\textbf{\\%} & \\textbf{RFSoC 4x2} & \\textbf{\\%} \\\\
-\\midrule
-DSP slices  & 237  & 107.7\\% & 466  & 10.9\\% \\\\
-BRAM tiles  & 60   & 21.4\\%  & 154  & 7.1\\%  \\\\
-Flip-flops  & 66,984 & 62.9\\% & 259,434 & 30.5\\% \\\\
-LUTs        & 21,221 & 39.9\\% & 235,685 & 55.4\\% \\\\
-$F_{\\max}$ & 140 MHz & ---   & 166 MHz & --- \\\\
-\\bottomrule
-\\end{tabular}
-\\end{table}
-
-The PYNQ-Z2 implementation exceeds DSP availability (107.7\\%), confirming that Montgomery-domain arithmetic (deferred in this work) or a smaller architecture is necessary for resource-constrained platforms. The RFSoC~4x2 implementation fits comfortably within all resource budgets, with DSP utilization at 10.9\\%, BRAM at 7.1\\%, and flip-flops at 30.5\\%. The estimated maximum clock frequency of 166~MHz exceeds the 100~MHz PYNQ-Z2 result, approaching the 200~MHz target clock period of 5~ns (estimated critical path 6.035~ns). LUT utilization at 55.4\\% reflects the 8-way PE parallelism and complete array partitioning of the scratchpad banks, leaving substantial headroom for additional functionality such as multi-round state management or AXI-Stream DMA logic.
+\begin{table}[t]
+\centering
+\caption{Post-synthesis resource utilization (8-PE configuration with scratchpad).}
+\label{tab:synthesis}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Resource} & \textbf{PYNQ-Z2} & \textbf{\%} & \textbf{RFSoC 4x2} & \textbf{\%} \\
 \midrule
-$f_{\max}$  & 140\,MHz & --- & 200\,MHz & --- \\
+DSP slices  & 237  & 107.7\% & 466   & 10.9\% \\
+BRAM tiles  & 60   & 21.4\%  & 154   & 7.1\%  \\
+Flip-flops  & 66,984 & 62.9\% & 259,434 & 30.5\% \\
+LUTs        & 21,221 & 39.9\% & 235,685 & 55.4\% \\
+$F_{\max}$ & 140 MHz & ---   & 166 MHz & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The PYNQ-Z2 results confirm that the full eight-PE design exceeds the DSP resources of the \texttt{xc7z020} device, necessitating a reduced PE count or a larger FPGA. The single-PE configuration fits comfortably on the PYNQ-Z2, utilizing approximately 14\% of DSPs and 3\% of BRAMs, providing a viable development and testing platform for functional verification.
-
-On the RFSoC~4x2, the eight-PE configuration consumes approximately 15\% of DSP slices and 10\% of BRAM tiles, leaving substantial headroom for additional accelerator components such as a multi-scalar multiplication (MSM) engine or additional SumCheck rounds. The achieved $f_{\max}$ of 200~MHz matches the target clock frequency.
+The PYNQ-Z2 implementation exceeds DSP availability (107.7\%), confirming that a reduced architecture or Montgomery-domain arithmetic is necessary for resource-constrained platforms. The RFSoC~4x2 implementation fits comfortably within all resource budgets. The estimated maximum clock frequency of 166~MHz approaches the 200~MHz target. LUT utilization at 55.4\% reflects the 8-way PE parallelism and complete array partitioning of the scratchpad banks, leaving substantial headroom for additional functionality.
 
 \subsection{Scaling Analysis}
 
-Scaling from one to eight PEs exhibits near-linear improvement in throughput, as the per-PE workload is independent and the scratchpad banking scheme avoids contention. The primary limitation on scaling is the number of BRAM ports available for concurrent access to multiple MLE factors. With sixteen banks and eight PEs, each requiring access to up to $K_{\max}=16$ factor tiles, the bank count matches the peak demand in the common case where factor reuse across PEs is high. In the worst case where each PE accesses a disjoint set of factors, demand can temporarily exceed supply, introducing pipeline stalls; this is mitigated by the factor reuse inherent in practical gate compositions.
+Scaling from one to eight PEs exhibits near-linear improvement in throughput, as the per-PE workload is independent and the scratchpad banking scheme avoids contention. The adaptive PE count mechanism gracefully degrades performance for small problem sizes where full parallelism cannot be exploited. The primary limitation on scaling is LUT utilization, driven by the complete array partitioning of the extension and product-lane buffers; relaxing the partitioning from ``complete'' to ``cyclic'' would reduce LUT usage at some cost to throughput.
 
 \subsection{Architectural Parity with Reference Design}
 
-The presented accelerator adheres to the zkPHIRE architecture described in~\cite{zkphire2026}. Specifically, it implements the PE microarchitecture of Figures~3--4 (Extension Engine, Product Lane, Accumulator, Update Unit), the sixteen-scratchpad-bank buffering scheme, and the multi-PE tile-distribution strategy. Montgomery arithmetic is employed throughout, matching the reference design's choice of modular arithmetic. The primary documented deviation is a maximum supported degree of $K_{\max}=16$ factor products per gate, compared to the reference design's theoretical maximum of 31; this conservative choice accommodates the narrower product-lane datapath in the current RTL and can be extended by increasing factor buffer depth in future iterations.
+The presented accelerator adheres to the zkPHIRE architecture described in~\cite{zkphire2026}. Specifically, it implements the PE microarchitecture (Extension Engine, Product Lane, Accumulator, Update Unit), the sixteen-scratchpad-bank buffering scheme, and the multi-PE tile-distribution strategy. The primary documented deviations are: (1)~regular-domain arithmetic using \texttt{ap\_uint} division rather than Montgomery multiplication; (2)~a maximum supported degree of $K_{\max}=6$ rather than the reference design's 31; and (3)~single-round SumCheck scope rather than the full HyperPlonk protocol stack (ZeroCheck, PermCheck, OpenCheck).
 
 \section{Conclusion}
 
-This work has presented a programmable, FPGA-based accelerator for one round of the SumCheck protocol operating over the BN254 scalar field. The architecture employs Montgomery modular arithmetic, eight parallel processing elements with a pipelined dataflow organization, and sixteen scratchpad buffer banks matching the zkPHIRE reference design. A Python golden model provides bit-exact verification across eight deterministic test cases, confirming functional correctness for MLE evaluations with up to sixteen product factors per gate. Synthesis results on the Xilinx RFSoC~4x2 demonstrate feasible resource utilization with considerable headroom for integration into a complete ZKP prover pipeline.
+This work has presented a programmable, FPGA-based accelerator for one round of the SumCheck protocol operating over the BN254 scalar field. The architecture employs eight parallel processing elements, sixteen scratchpad buffer banks, and an adaptive PE dispatch mechanism. C-simulation verification confirms bit-exact agreement with a Python golden model across seven deterministic test cases. Synthesis results on the Xilinx RFSoC~4x2 demonstrate feasible resource utilization with substantial headroom for integration into a complete ZKP prover pipeline.
 
-Future work includes extending the accelerator to support the full \textsc{HyperPlonk} protocol stack, integrating multi-scalar multiplication (MSM) acceleration to cover the commitment phase, and deploying the combined system on an RFSoC platform for end-to-end prover benchmarking. Additionally, increasing the maximum supported gate degree to 31---matching the reference architecture's theoretical capacity---would broaden the accelerator's applicability to denser custom-gate arithmetizations.
+Future work includes: (1)~implementing Montgomery modular multiplication to reduce DSP utilization; (2)~extending the maximum supported degree to 31; (3)~integrating the accelerator into a full HyperPlonk protocol stack with ZeroCheck, PermCheck, and OpenCheck support; and (4)~deploying the combined system on an RFSoC platform for end-to-end prover benchmarking.
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{1}
@@ -256,10 +224,9 @@ P.~L.~Montgomery,
 \textit{Mathematics of Computation}, vol.~44, no.~170, pp.~519--521, 1985.
 
 \bibitem{zkphire2026}
-A.~Kaji \textit{et al.},
-``zkPHIRE: A ... ''
-\textit{HPCA 2026}, 2026.
-(Reference to be updated with full citation.)
+A.~Daftardar, J.~Mo, J.~Ah-kiow, B.~B{\"u}nz, S.~Garg, and B.~Reagen,
+``zkPHIRE: A Programmable Accelerator for ZKPs over HIgh-degRee, Expressive Gates,''
+in \textit{Proc. HPCA}, 2026.
 
 \end{thebibliography}
 
