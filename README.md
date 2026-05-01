@@ -54,7 +54,7 @@ The latest evidence is stored under [`docs/verification/`](docs/verification/). 
 
 ## Synthesis Summary
 
-Live Vitis HLS synthesis was run on NYU ECE servers with Vitis HLS 2023.2. The detailed tables and report excerpts are in [`docs/verification/synthesis-summary.md`](docs/verification/synthesis-summary.md).
+Live Vitis HLS synthesis was run on NYU ECE servers with Vitis HLS 2023.2. The detailed tables, pass/fail logs, IP-export evidence, latency rows, and resource report excerpts are in [`docs/verification/verification-summary.md`](docs/verification/verification-summary.md).
 
 | Implementation | Target part | Clock target | Architecture |
 |---|---:|---:|---|

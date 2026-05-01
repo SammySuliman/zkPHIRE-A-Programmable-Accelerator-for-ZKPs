@@ -1,0 +1,2 @@
+-rwx------+ 1 ask9184 ask9184 457K May  1 18:54 /home/ask9184/zkphire/hls_rfsoc/zkphire_rfsoc_axi/solution1/impl/export.zip
+-rwx------+ 1 ask9184 ask9184 444K May  1 18:53 /home/ask9184/zkphire/hls/zkphire_axi/solution1/impl/export.zip

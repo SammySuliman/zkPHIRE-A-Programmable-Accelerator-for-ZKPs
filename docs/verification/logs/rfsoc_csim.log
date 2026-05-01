@@ -1,0 +1,18 @@
+INFO: [SIM 2] *************** CSIM start ***************
+INFO: [SIM 4] CSIM will launch GCC as the compiler.
+   Compiling ../../../../testbench/tb_sumcheck.cpp in debug mode
+   Compiling ../../../../src/sumcheck_top.cpp in debug mode
+   Generating csim.exe
+=== zkPHIRE SumCheck C-Simulation ===
+
+PASS Case-A r=5
+PASS Case-A r=0
+PASS Case-A r=1
+PASS Case-A chain
+PASS Case-B x1*x2
+PASS Case-B x2*x3
+Case-B combined PASS
+
+=== Results: 7/7 tests passed ===
+INFO: [SIM 1] CSim done with 0 errors.
+INFO: [SIM 3] *************** CSIM finish ***************

@@ -1,0 +1,212 @@
+
+
+================================================================
+== Vitis HLS Report for 'sumcheck_round_array'
+================================================================
+* Date:           Fri May  1 18:50:57 2026
+
+* Version:        2023.2 (Build 4023990 on Oct 11 2023)
+* Project:        zkphire_rfsoc
+* Solution:       solution1 (Vivado IP Flow Target)
+* Product family: zynquplusRFSOC
+* Target device:  xczu48dr-ffvg1517-2-e
+
+
+================================================================
+== Performance Estimates
+================================================================
++ Timing: 
+    * Summary: 
+    +--------+---------+----------+------------+
+    |  Clock |  Target | Estimated| Uncertainty|
+    +--------+---------+----------+------------+
+    |ap_clk  |  5.00 ns|  6.035 ns|     1.35 ns|
+    +--------+---------+----------+------------+
+
++ Latency: 
+    * Summary: 
+    +---------+----------+----------+-----------+-----+----------+---------+
+    |  Latency (cycles)  |  Latency (absolute)  |    Interval    | Pipeline|
+    |   min   |    max   |    min   |    max    | min |    max   |   Type  |
+    +---------+----------+----------+-----------+-----+----------+---------+
+    |        1|  25718637|  6.035 ns|  0.155 sec|    2|  25718638|       no|
+    +---------+----------+----------+-----------+-----+----------+---------+
+
+    + Detail: 
+        * Instance: 
+        +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+----------+-----------+-----------+-----+----------+---------+
+        |                                                                            |                                                                 |  Latency (cycles)  |   Latency (absolute)  |    Interval    | Pipeline|
+        |                                  Instance                                  |                              Module                             |   min   |    max   |    min    |    max    | min |    max   |   Type  |
+        +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+----------+-----------+-----------+-----+----------+---------+
+        |grp_multi_pe_sumcheck_fu_121                                                |multi_pe_sumcheck                                                |      718|  25717862|   4.333 us|  0.155 sec|  718|  25717862|       no|
+        |grp_sumcheck_round_array_Pipeline_VITIS_LOOP_160_1_VITIS_LOOP_162_2_fu_134  |sumcheck_round_array_Pipeline_VITIS_LOOP_160_1_VITIS_LOOP_162_2  |        3|       770|  15.000 ns|   3.850 us|    3|       770|       no|
+        +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+----------+-----------+-----------+-----+----------+---------+
+
+        * Loop: 
+        N/A
+
+
+
+================================================================
+== Utilization Estimates
+================================================================
+* Summary: 
++-----------------+---------+------+--------+--------+-----+
+|       Name      | BRAM_18K|  DSP |   FF   |   LUT  | URAM|
++-----------------+---------+------+--------+--------+-----+
+|DSP              |        -|     -|       -|       -|    -|
+|Expression       |        -|     -|       0|     713|    -|
+|FIFO             |        -|     -|       -|       -|    -|
+|Instance         |      154|   466|  258943|  234850|    0|
+|Memory           |        -|     -|       -|       -|    -|
+|Multiplexer      |        -|     -|       -|     122|    -|
+|Register         |        -|     -|     491|       -|    -|
++-----------------+---------+------+--------+--------+-----+
+|Total            |      154|   466|  259434|  235685|    0|
++-----------------+---------+------+--------+--------+-----+
+|Available        |     2160|  4272|  850560|  425280|   80|
++-----------------+---------+------+--------+--------+-----+
+|Utilization (%)  |        7|    10|      30|      55|    0|
++-----------------+---------+------+--------+--------+-----+
+
++ Detail: 
+    * Instance: 
+    +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+-----+--------+--------+-----+
+    |                                  Instance                                  |                              Module                             | BRAM_18K| DSP |   FF   |   LUT  | URAM|
+    +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+-----+--------+--------+-----+
+    |control_s_axi_U                                                             |control_s_axi                                                    |        0|    0|     378|     688|    0|
+    |mul_64ns_31ns_95_3_1_U241                                                   |mul_64ns_31ns_95_3_1                                             |        0|    8|     362|     178|    0|
+    |grp_multi_pe_sumcheck_fu_121                                                |multi_pe_sumcheck                                                |      154|  458|  258031|  233507|    0|
+    |grp_sumcheck_round_array_Pipeline_VITIS_LOOP_160_1_VITIS_LOOP_162_2_fu_134  |sumcheck_round_array_Pipeline_VITIS_LOOP_160_1_VITIS_LOOP_162_2  |        0|    0|     172|     477|    0|
+    +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+-----+--------+--------+-----+
+    |Total                                                                       |                                                                 |      154|  466|  258943|  234850|    0|
+    +----------------------------------------------------------------------------+-----------------------------------------------------------------+---------+-----+--------+--------+-----+
+
+    * DSP: 
+    N/A
+
+    * Memory: 
+    N/A
+
+    * FIFO: 
+    N/A
+
+    * Expression: 
+    +---------------------------------+----------+----+---+-----+------------+------------+
+    |          Variable Name          | Operation| DSP| FF| LUT | Bitwidth P0| Bitwidth P1|
+    +---------------------------------+----------+----+---+-----+------------+------------+
+    |add_ln153_fu_151_p2              |         +|   0|  0|   39|          32|           2|
+    |add_ln154_fu_163_p2              |         +|   0|  0|   39|          32|           3|
+    |add_ln155_fu_175_p2              |         +|   0|  0|   39|          32|           2|
+    |sub_ln160_fu_245_p2              |         -|   0|  0|   40|          33|          33|
+    |and_ln155_fu_181_p2              |       and|   0|  0|   32|          32|          32|
+    |ap_block_state6_on_subcall_done  |       and|   0|  0|    2|           1|           1|
+    |ap_predicate_op58_call_state6    |       and|   0|  0|    2|           1|           1|
+    |empty_32_fu_227_p2               |      icmp|   0|  0|   39|          32|           3|
+    |icmp_ln153_fu_157_p2             |      icmp|   0|  0|   39|          32|           3|
+    |icmp_ln154_fu_169_p2             |      icmp|   0|  0|   39|          32|           8|
+    |icmp_ln155_fu_187_p2             |      icmp|   0|  0|   39|          32|           1|
+    |icmp_ln156_fu_193_p2             |      icmp|   0|  0|  263|         256|         254|
+    |icmp_ln162_fu_213_p2             |      icmp|   0|  0|   38|          31|           1|
+    |select_ln162_fu_219_p3           |    select|   0|  0|   31|           1|          31|
+    |smax1_fu_233_p3                  |    select|   0|  0|   32|           1|          32|
+    +---------------------------------+----------+----+---+-----+------------+------------+
+    |Total                            |          |   0|  0|  713|         580|         407|
+    +---------------------------------+----------+----+---+-----+------------+------------+
+
+    * Multiplexer: 
+    +------------------------------------+----+-----------+-----+-----------+
+    |                Name                | LUT| Input Size| Bits| Total Bits|
+    +------------------------------------+----+-----------+-----+-----------+
+    |ap_NS_fsm                           |  37|          7|    1|          7|
+    |ap_phi_mux_retval_0_phi_fu_104_p10  |   9|          2|    2|          4|
+    |retval_0_reg_98                     |  20|          4|    2|          8|
+    |updated_Addr_A                      |  14|          3|   32|         96|
+    |updated_Din_A                       |  14|          3|  256|        768|
+    |updated_EN_A                        |  14|          3|    1|          3|
+    |updated_WEN_A                       |  14|          3|   32|         96|
+    +------------------------------------+----+-----------+-----+-----------+
+    |Total                               | 122|         25|  326|        982|
+    +------------------------------------+----+-----------+-----+-----------+
+
+    * Register: 
+    +-----------------------------------------------------------------------------------------+-----+----+-----+-----------+
+    |                                           Name                                          |  FF | LUT| Bits| Const Bits|
+    +-----------------------------------------------------------------------------------------+-----+----+-----+-----------+
+    |ap_CS_fsm                                                                                |    6|   0|    6|          0|
+    |degree_read_reg_272                                                                      |   32|   0|   32|          0|
+    |empty_reg_278                                                                            |  254|   0|  254|          0|
+    |grp_multi_pe_sumcheck_fu_121_ap_start_reg                                                |    1|   0|    1|          0|
+    |grp_sumcheck_round_array_Pipeline_VITIS_LOOP_160_1_VITIS_LOOP_162_2_fu_134_ap_start_reg  |    1|   0|    1|          0|
+    |icmp_ln153_reg_283                                                                       |    1|   0|    1|          0|
+    |icmp_ln154_reg_287                                                                       |    1|   0|    1|          0|
+    |icmp_ln155_reg_291                                                                       |    1|   0|    1|          0|
+    |icmp_ln156_reg_295                                                                       |    1|   0|    1|          0|
+    |mul_ln158_reg_320                                                                        |   95|   0|   95|          0|
+    |retval_0_reg_98                                                                          |    2|   0|    2|          0|
+    |select_ln162_reg_299                                                                     |   31|   0|   31|          0|
+    |size_read_reg_267                                                                        |   32|   0|   32|          0|
+    |sub_ln160_reg_305                                                                        |   33|   0|   33|          0|
+    +-----------------------------------------------------------------------------------------+-----+----+-----+-----------+
+    |Total                                                                                    |  491|   0|  491|          0|
+    +-----------------------------------------------------------------------------------------+-----+----+-----+-----------+
+
+
+
+================================================================
+== Interface
+================================================================
+* Summary: 
++-----------------------+-----+-----+------------+----------------------+--------------+
+|       RTL Ports       | Dir | Bits|  Protocol  |     Source Object    |    C Type    |
++-----------------------+-----+-----+------------+----------------------+--------------+
+|s_axi_control_AWVALID  |   in|    1|       s_axi|               control|        scalar|
+|s_axi_control_AWREADY  |  out|    1|       s_axi|               control|        scalar|
+|s_axi_control_AWADDR   |   in|    7|       s_axi|               control|        scalar|
+|s_axi_control_WVALID   |   in|    1|       s_axi|               control|        scalar|
+|s_axi_control_WREADY   |  out|    1|       s_axi|               control|        scalar|
+|s_axi_control_WDATA    |   in|   32|       s_axi|               control|        scalar|
+|s_axi_control_WSTRB    |   in|    4|       s_axi|               control|        scalar|
+|s_axi_control_ARVALID  |   in|    1|       s_axi|               control|        scalar|
+|s_axi_control_ARREADY  |  out|    1|       s_axi|               control|        scalar|
+|s_axi_control_ARADDR   |   in|    7|       s_axi|               control|        scalar|
+|s_axi_control_RVALID   |  out|    1|       s_axi|               control|        scalar|
+|s_axi_control_RREADY   |   in|    1|       s_axi|               control|        scalar|
+|s_axi_control_RDATA    |  out|   32|       s_axi|               control|        scalar|
+|s_axi_control_RRESP    |  out|    2|       s_axi|               control|        scalar|
+|s_axi_control_BVALID   |  out|    1|       s_axi|               control|        scalar|
+|s_axi_control_BREADY   |   in|    1|       s_axi|               control|        scalar|
+|s_axi_control_BRESP    |  out|    2|       s_axi|               control|        scalar|
+|ap_clk                 |   in|    1|  ap_ctrl_hs|  sumcheck_round_array|  return value|
+|ap_rst_n               |   in|    1|  ap_ctrl_hs|  sumcheck_round_array|  return value|
+|interrupt              |  out|    1|  ap_ctrl_hs|  sumcheck_round_array|  return value|
+|tables_Addr_A          |  out|   32|        bram|                tables|         array|
+|tables_EN_A            |  out|    1|        bram|                tables|         array|
+|tables_WEN_A           |  out|   32|        bram|                tables|         array|
+|tables_Din_A           |  out|  256|        bram|                tables|         array|
+|tables_Dout_A          |   in|  256|        bram|                tables|         array|
+|tables_Clk_A           |  out|    1|        bram|                tables|         array|
+|tables_Rst_A           |  out|    1|        bram|                tables|         array|
+|tables_Addr_B          |  out|   32|        bram|                tables|         array|
+|tables_EN_B            |  out|    1|        bram|                tables|         array|
+|tables_WEN_B           |  out|   32|        bram|                tables|         array|
+|tables_Din_B           |  out|  256|        bram|                tables|         array|
+|tables_Dout_B          |   in|  256|        bram|                tables|         array|
+|tables_Clk_B           |  out|    1|        bram|                tables|         array|
+|tables_Rst_B           |  out|    1|        bram|                tables|         array|
+|samples_Addr_A         |  out|   32|        bram|               samples|         array|
+|samples_EN_A           |  out|    1|        bram|               samples|         array|
+|samples_WEN_A          |  out|   32|        bram|               samples|         array|
+|samples_Din_A          |  out|  256|        bram|               samples|         array|
+|samples_Dout_A         |   in|  256|        bram|               samples|         array|
+|samples_Clk_A          |  out|    1|        bram|               samples|         array|
+|samples_Rst_A          |  out|    1|        bram|               samples|         array|
+|updated_Addr_A         |  out|   32|        bram|               updated|         array|
+|updated_EN_A           |  out|    1|        bram|               updated|         array|
+|updated_WEN_A          |  out|   32|        bram|               updated|         array|
+|updated_Din_A          |  out|  256|        bram|               updated|         array|
+|updated_Dout_A         |   in|  256|        bram|               updated|         array|
+|updated_Clk_A          |  out|    1|        bram|               updated|         array|
+|updated_Rst_A          |  out|    1|        bram|               updated|         array|
++-----------------------+-----+-----+------------+----------------------+--------------+
+
