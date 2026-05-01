@@ -6,44 +6,34 @@
 #include "include/accumulator.hpp"
 #include "include/scratchpad.hpp"
 
-status_t sumcheck_round_array(
+// ===================================================================
+// PE SumCheck — one PE per tile range, produces partial samples
+// ===================================================================
+
+static void pe_sumcheck_round(
     const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
-    field_elem_t r, int degree, int size,
-    field_elem_t samples[MAX_SAMPLES],
-    field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
+    int degree,
+    int start_pair,
+    int num_pairs,
+    field_elem_t sp[SCRATCHPAD_BANKS][SCRATCHPAD_DEPTH],
+    field_elem_t pe_samples[MAX_SAMPLES]
 ) {
-#pragma HLS INTERFACE s_axilite port=return bundle=control
-#pragma HLS INTERFACE s_axilite port=degree  bundle=control
-#pragma HLS INTERFACE s_axilite port=size    bundle=control
-#pragma HLS INTERFACE s_axilite port=r       bundle=control
-#pragma HLS INTERFACE bram      port=tables
-#pragma HLS INTERFACE bram      port=samples
-#pragma HLS INTERFACE bram      port=updated
-
-    if (degree < 1 || degree > MAX_DEGREE)  return STATUS_BAD_DEGREE;
-    if (size < 2 || size > MAX_TABLE_SIZE)  return STATUS_BAD_SIZE;
-    if ((size & (size - 1)) != 0)           return STATUS_BAD_SIZE;
-    if (r >= FIELD_P)                       return STATUS_BAD_CHALLENGE;
-
     int deg = degree;
     if (deg > MAX_DEGREE) deg = MAX_DEGREE;
-    const int pair_count = size / 2;
-
-    field_elem_t sp[SCRATCHPAD_BANKS][SCRATCHPAD_DEPTH];
-#pragma HLS ARRAY_PARTITION variable=sp complete dim=1
-
-    // Load tables into scratchpad
-    for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
-#pragma HLS PIPELINE II=1
-        scratchpad_load(sp, m, tables[m], size);
-    }
 
     field_elem_t round_samples[MAX_SAMPLES];
 #pragma HLS ARRAY_PARTITION variable=round_samples complete dim=1
     accum_init(deg, round_samples);
 
+    if (start_pair == 0) {
+        for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
+#pragma HLS PIPELINE II=1
+            scratchpad_load(sp, m, tables[m], num_pairs * 2);
+        }
+    }
+
     pair_loop:
-    for (int k = 0; k < pair_count; ++k) {
+    for (int k = start_pair; k < start_pair + num_pairs; ++k) {
 #pragma HLS PIPELINE II=1
         field_elem_t extensions[MAX_DEGREE][MAX_SAMPLES];
 #pragma HLS ARRAY_PARTITION variable=extensions complete dim=0
@@ -66,16 +56,87 @@ status_t sumcheck_round_array(
 
     for (int x = 0; x <= deg; ++x) {
 #pragma HLS PIPELINE II=1
-        samples[x] = round_samples[x];
+        pe_samples[x] = round_samples[x];
+    }
+}
+
+// ===================================================================
+// Multi-PE — 8 PEs via UNROLL, tree reduction of partial samples
+// ===================================================================
+
+static void multi_pe_sumcheck(
+    const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
+    int degree, int size, field_elem_t r,
+    field_elem_t samples[MAX_SAMPLES],
+    field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
+) {
+    int deg = degree;
+    if (deg > MAX_DEGREE) deg = MAX_DEGREE;
+    const int pair_count = size / 2;
+    const int pairs_per_pe = pair_count / NUM_PES;
+
+    field_elem_t pe_all_samples[NUM_PES][MAX_SAMPLES];
+    field_elem_t sp[SCRATCHPAD_BANKS][SCRATCHPAD_DEPTH];
+#pragma HLS ARRAY_PARTITION variable=pe_all_samples complete dim=1
+#pragma HLS ARRAY_PARTITION variable=sp complete dim=1
+
+    for (int pe = 0; pe < NUM_PES; ++pe) {
+#pragma HLS UNROLL
+        pe_sumcheck_round(tables, deg, pe * pairs_per_pe,
+                          pairs_per_pe, sp, pe_all_samples[pe]);
     }
 
+    field_elem_t combined[MAX_SAMPLES];
+#pragma HLS ARRAY_PARTITION variable=combined complete dim=1
+    for (int x = 0; x <= deg; ++x) {
+#pragma HLS PIPELINE II=1
+        combined[x] = pe_all_samples[0][x];
+    }
+    for (int pe = 1; pe < NUM_PES; ++pe) {
+        for (int x = 0; x <= deg; ++x) {
+#pragma HLS PIPELINE II=1
+            combined[x] = mod_add(combined[x], pe_all_samples[pe][x]);
+        }
+    }
+    for (int x = 0; x <= deg; ++x) {
+#pragma HLS PIPELINE II=1
+        samples[x] = combined[x];
+    }
+
+    // Update tables once (not per-PE)
     for (int mle_idx = 0; mle_idx < deg; ++mle_idx) {
 #pragma HLS PIPELINE II=1
         update_table<MAX_TABLE_SIZE>(tables[mle_idx], r, updated[mle_idx]);
     }
+}
+
+// ===================================================================
+// sumcheck_round_array — BRAM API
+// ===================================================================
+
+status_t sumcheck_round_array(
+    const field_elem_t tables[MAX_DEGREE][MAX_TABLE_SIZE],
+    field_elem_t r, int degree, int size,
+    field_elem_t samples[MAX_SAMPLES],
+    field_elem_t updated[MAX_DEGREE][MAX_TABLE_SIZE / 2]
+) {
+#pragma HLS INTERFACE s_axilite port=return bundle=control
+#pragma HLS INTERFACE s_axilite port=degree  bundle=control
+#pragma HLS INTERFACE s_axilite port=size    bundle=control
+#pragma HLS INTERFACE s_axilite port=r       bundle=control
+#pragma HLS INTERFACE bram      port=tables
+#pragma HLS INTERFACE bram      port=samples
+#pragma HLS INTERFACE bram      port=updated
+
+    if (degree < 1 || degree > MAX_DEGREE)  return STATUS_BAD_DEGREE;
+    if (size < 2 || size > MAX_TABLE_SIZE)  return STATUS_BAD_SIZE;
+    if ((size & (size - 1)) != 0)           return STATUS_BAD_SIZE;
+    if (r >= FIELD_P)                       return STATUS_BAD_CHALLENGE;
+
+    multi_pe_sumcheck(tables, degree, size, r, samples, updated);
 
     for (int m = degree; m < MAX_DEGREE; ++m)
-        for (int k = 0; k < pair_count; ++k)
+        for (int k = 0; k < size / 2; ++k)
 #pragma HLS PIPELINE
             updated[m][k] = field_elem_t(0);
     return STATUS_OK;

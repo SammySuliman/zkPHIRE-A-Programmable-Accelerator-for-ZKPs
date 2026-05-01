@@ -17,9 +17,9 @@ static const field_elem_t FIELD_P = field_elem_t(
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"
 );
 
-static const int MAX_DEGREE = 16;
+static const int MAX_DEGREE = 6;
 static const int MAX_SAMPLES = MAX_DEGREE + 1;
-static const int MAX_TABLE_SIZE = 1024;
+static const int MAX_TABLE_SIZE = 256;
 
 static const int NUM_PES = 8;
 static const int SCRATCHPAD_BANKS = 16;
