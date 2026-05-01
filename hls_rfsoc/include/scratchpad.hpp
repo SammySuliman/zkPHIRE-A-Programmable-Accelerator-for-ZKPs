@@ -18,6 +18,7 @@ static void scratchpad_load(
 ) {
     load_loop:
     for (int i = 0; i < tile_size; ++i) {
+#pragma HLS LOOP_TRIPCOUNT min=2 max=256 avg=128
 #pragma HLS PIPELINE II=1
         sp[bank_id][i] = table[i];
     }
@@ -43,6 +44,7 @@ static void scratchpad_write_updated(
 ) {
     write_loop:
     for (int i = 0; i < new_size; ++i) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE II=1
         sp[bank_id][i] = updated[i];
     }

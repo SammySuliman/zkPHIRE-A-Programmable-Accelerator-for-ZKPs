@@ -40,6 +40,7 @@ static void update_table(
 ) {
     update_loop:
     for (int k = 0; k < SIZE / 2; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE II=1
         out[k] = update2(table[2 * k], table[2 * k + 1], r);
     }

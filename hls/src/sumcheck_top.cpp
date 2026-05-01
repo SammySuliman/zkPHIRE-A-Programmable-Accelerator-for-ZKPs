@@ -52,12 +52,14 @@ static void pe_sumcheck_round(
     // --- Main pair loop ---
     pair_loop:
     for (int k = 0; k < pair_count; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE II=1
 
         field_elem_t extensions[MAX_DEGREE][MAX_SAMPLES];
 #pragma HLS ARRAY_PARTITION variable=extensions complete dim=0
 
         for (int mle_idx = 0; mle_idx < deg; ++mle_idx) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=5 avg=3
 #pragma HLS UNROLL
             field_elem_t f0, f1;
             if (round_num == 1) {
@@ -82,11 +84,13 @@ static void pe_sumcheck_round(
     }
 
     for (int x = 0; x <= deg; ++x) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=4
 #pragma HLS UNROLL
         samples[x] = round_samples[x];
     }
 
     for (int mle_idx = 0; mle_idx < deg; ++mle_idx) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=5 avg=3
 #pragma HLS UNROLL
         update_table<MAX_TABLE_SIZE>(tables[mle_idx], r, updated[mle_idx]);
     }
@@ -145,7 +149,9 @@ status_t sumcheck_round_array(
     dual_pe_sumcheck(tables, degree, size, r, 1, samples, updated);
 
     for (int m = degree; m < MAX_DEGREE; ++m) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=5 avg=3
         for (int k = 0; k < size / 2; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE
             updated[m][k] = field_elem_t(0);
         }
@@ -186,7 +192,9 @@ status_t sumcheck_round_axi(
 #pragma HLS ARRAY_PARTITION variable=local_tables complete dim=1
 
     for (int mle = 0; mle < degree; ++mle) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=5 avg=3
         for (int i = 0; i < size; ++i) {
+#pragma HLS LOOP_TRIPCOUNT min=2 max=256 avg=128
 #pragma HLS PIPELINE II=1
             local_tables[mle][i] = mle_inputs[mle * size + i];
         }
@@ -199,11 +207,14 @@ status_t sumcheck_round_axi(
     dual_pe_sumcheck(local_tables, degree, size, r, 1, local_samples, local_updated);
 
     for (int x = 0; x <= degree; ++x) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=4
 #pragma HLS PIPELINE II=1
         round_samples[x] = local_samples[x];
     }
     for (int mle = 0; mle < degree; ++mle) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=5 avg=3
         for (int k = 0; k < size / 2; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE II=1
             next_tables[mle * (size / 2) + k] = local_updated[mle][k];
         }

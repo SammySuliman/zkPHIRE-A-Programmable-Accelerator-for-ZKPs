@@ -27,10 +27,12 @@ static void pe_sumcheck_round(
 
     pair_loop:
     for (int k = start_pair; k < start_pair + num_pairs; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=16
 #pragma HLS PIPELINE II=1
         field_elem_t extensions[MAX_DEGREE][MAX_SAMPLES];
 #pragma HLS ARRAY_PARTITION variable=extensions complete dim=0
         for (int mle_idx = 0; mle_idx < deg; ++mle_idx) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=3
 #pragma HLS UNROLL
             field_elem_t f0, f1;
             if (mle_idx < SCRATCHPAD_BANKS) {
@@ -48,6 +50,7 @@ static void pe_sumcheck_round(
     }
 
     for (int x = 0; x <= deg; ++x) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=7 avg=4
 #pragma HLS PIPELINE II=1
         pe_samples[x] = round_samples[x];
     }
@@ -77,11 +80,13 @@ static void multi_pe_sumcheck(
 #pragma HLS ARRAY_PARTITION variable=sp complete dim=1
 
     for (int m = 0; m < deg && m < SCRATCHPAD_BANKS; ++m) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=3
 #pragma HLS PIPELINE II=1
         scratchpad_load(sp, m, tables[m], size);
     }
 
     for (int pe = 0; pe < eff_pes; ++pe) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=8 avg=4
 #pragma HLS UNROLL
         int start = pe * pairs_per_pe;
         int count = pairs_per_pe + ((pe < remainder) ? 1 : 0);
@@ -93,7 +98,9 @@ static void multi_pe_sumcheck(
     }
     // Zero unused PE samples
     for (int pe = eff_pes; pe < NUM_PES; ++pe) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=8 avg=4
         for (int x = 0; x <= deg; ++x)
+#pragma HLS LOOP_TRIPCOUNT min=1 max=7 avg=4
 #pragma HLS PIPELINE II=1
             pe_all_samples[pe][x] = field_elem_t(0);
     }
@@ -105,7 +112,9 @@ static void multi_pe_sumcheck(
         combined[x] = pe_all_samples[0][x];
     }
     for (int pe = 1; pe < NUM_PES; ++pe) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=7 avg=4
         for (int x = 0; x <= deg; ++x) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=7 avg=4
 #pragma HLS PIPELINE II=1
             combined[x] = mod_add(combined[x], pe_all_samples[pe][x]);
         }
@@ -117,6 +126,7 @@ static void multi_pe_sumcheck(
 
     // Update tables once (not per-PE)
     for (int mle_idx = 0; mle_idx < deg; ++mle_idx) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=3
 #pragma HLS PIPELINE II=1
         update_table<MAX_TABLE_SIZE>(tables[mle_idx], r, updated[mle_idx]);
     }
@@ -147,9 +157,13 @@ status_t sumcheck_round_array(
 
     multi_pe_sumcheck(tables, degree, size, r, samples, updated);
 
-    for (int m = degree; m < MAX_DEGREE; ++m)
-        for (int k = 0; k < size / 2; ++k)
+    for (int m = degree; m < MAX_DEGREE; ++m) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=6 avg=3
+        for (int k = 0; k < size / 2; ++k) {
+#pragma HLS LOOP_TRIPCOUNT min=1 max=128 avg=64
 #pragma HLS PIPELINE
             updated[m][k] = field_elem_t(0);
+        }
+    }
     return STATUS_OK;
 }
