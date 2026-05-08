@@ -369,16 +369,32 @@
       <div class="frame wide">
         <span class="slide-no">02</span>
         <div class="eyebrow">Zero-knowledge proofs, in one sentence</div>
-        <div class="two">
-          <div>
-            <h2>Prove the claim. Hide the witness.</h2>
-            <p class="lead">A prover convinces a verifier that a statement is true without revealing the private information that makes it true.</p>
-          </div>
-          <div class="stack">
-            <div class="card"><h3>Completeness</h3><p>If the claim is true and both parties follow the protocol, the verifier accepts.</p></div>
-            <div class="card"><h3>Soundness</h3><p>If the claim is false, a cheating prover should not be able to convince the verifier.</p></div>
-            <div class="card"><h3>Zero knowledge</h3><p>The proof leaks nothing beyond the truth of the statement.</p></div>
-          </div>
+        <h2 style="max-width:20ch">Prove the claim. Hide the witness.</h2>
+        <div class="diagram" style="margin-top:2.2rem; padding:2rem 1.6rem">
+          <svg viewBox="0 0 1040 280" role="img" aria-label="Prover and verifier exchange">
+            <defs>
+              <marker id="arrR" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7b341e"/></marker>
+              <marker id="arrL" markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#355c45"/></marker>
+            </defs>
+            <circle cx="140" cy="140" r="78" fill="#fffaf0" stroke="#d6c8aa" stroke-width="1.5"/>
+            <text x="140" y="135" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#1f241c">Prover</text>
+            <text x="140" y="165" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#6b6557">knows witness w</text>
+            <circle cx="900" cy="140" r="78" fill="#fffaf0" stroke="#d6c8aa" stroke-width="1.5"/>
+            <text x="900" y="135" text-anchor="middle" font-family="Georgia, serif" font-size="26" fill="#1f241c">Verifier</text>
+            <text x="900" y="165" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#6b6557">sees only proof π</text>
+            <line x1="225" y1="100" x2="815" y2="100" stroke="#7b341e" stroke-width="2" marker-end="url(#arrR)"/>
+            <text x="520" y="90" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#7b341e">commitment, π</text>
+            <line x1="815" y1="150" x2="225" y2="150" stroke="#355c45" stroke-width="2" marker-end="url(#arrL)"/>
+            <text x="520" y="142" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="17" fill="#355c45">random challenge r</text>
+            <line x1="225" y1="200" x2="815" y2="200" stroke="#7b341e" stroke-width="2" marker-end="url(#arrR)"/>
+            <text x="520" y="192" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#7b341e">response</text>
+            <text x="520" y="232" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#8a6f2a">witness w never crosses the line</text>
+          </svg>
+        </div>
+        <div class="three" style="margin-top:1.6rem">
+          <div class="card center" style="text-align:center"><h3 class="green">Complete</h3><p style="margin:.3rem 0 0">true claim → accepted</p></div>
+          <div class="card center" style="text-align:center"><h3 class="accent">Sound</h3><p style="margin:.3rem 0 0">false claim → rejected</p></div>
+          <div class="card center" style="text-align:center"><h3>Zero knowledge</h3><p style="margin:.3rem 0 0">leaks nothing about w</p></div>
         </div>
       </div>
     </section>
@@ -387,11 +403,35 @@
       <div class="frame full">
         <span class="slide-no">03</span>
         <div class="eyebrow">How computation becomes algebra</div>
-        <h2>Modern ZK systems turn circuits into polynomial identities.</h2>
-        <div class="formula">\[ f_{\text{Plonk}} = q_Lw_1 + q_Rw_2 + q_Mw_1w_2 - q_Ow_3 + q_C \]</div>
-        <div class="two">
-          <p>A gate is valid when its polynomial constraint evaluates to zero. Instead of re-executing every gate, the verifier checks randomized polynomial claims.</p>
-          <p>For large computations, the prover still does the heavy work: evaluating, multiplying, summing, committing, and opening many finite-field polynomials.</p>
+        <h2>Circuits become polynomial identities.</h2>
+        <div class="diagram" style="margin-top:1.5rem; padding:1.6rem">
+          <svg viewBox="0 0 1040 220" role="img" aria-label="Circuit gate to polynomial">
+            <defs>
+              <marker id="arr3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7b341e"/></marker>
+            </defs>
+            <text x="120" y="44" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="#7b341e" letter-spacing="2">CIRCUIT GATE</text>
+            <line x1="60" y1="100" x2="115" y2="100" stroke="#1f241c" stroke-width="2"/>
+            <text x="50" y="105" text-anchor="end" font-family="Georgia, serif" font-style="italic" font-size="18" fill="#1f241c">w₁</text>
+            <line x1="60" y1="150" x2="115" y2="150" stroke="#1f241c" stroke-width="2"/>
+            <text x="50" y="155" text-anchor="end" font-family="Georgia, serif" font-style="italic" font-size="18" fill="#1f241c">w₂</text>
+            <path d="M115 75 L115 175 Q175 175 200 125 Q175 75 115 75 Z" fill="#fffaf0" stroke="#d6c8aa" stroke-width="1.5"/>
+            <text x="155" y="130" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#1f241c">×</text>
+            <line x1="200" y1="125" x2="260" y2="125" stroke="#1f241c" stroke-width="2"/>
+            <text x="270" y="130" font-family="Georgia, serif" font-style="italic" font-size="18" fill="#1f241c">w₃</text>
+            <line x1="380" y1="115" x2="450" y2="115" stroke="#7b341e" stroke-width="2" marker-end="url(#arr3)"/>
+            <text x="415" y="100" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">encode</text>
+            <text x="730" y="44" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="#7b341e" letter-spacing="2">POLYNOMIAL CONSTRAINT</text>
+            <foreignObject x="475" y="80" width="510" height="100">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Georgia,serif; font-size:1.55rem; color:#1f241c; text-align:center; line-height:1.7;">
+                \( q_L w_1 + q_R w_2 + q_M w_1 w_2 - q_O w_3 + q_C \;=\; 0 \)
+              </div>
+            </foreignObject>
+            <text x="730" y="200" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">selectors q encode the gate type</text>
+          </svg>
+        </div>
+        <div class="two" style="margin-top:1rem">
+          <p>Each gate becomes a constraint that evaluates to zero on valid inputs.</p>
+          <p>The verifier checks randomized polynomial claims — never the full circuit trace.</p>
         </div>
       </div>
     </section>
@@ -400,19 +440,65 @@
       <div class="frame full">
         <span class="slide-no">04</span>
         <div class="eyebrow">The protocol kernel we accelerate</div>
-        <div class="two">
-          <div>
-            <h2>SumCheck reduces a huge sum to a few random checks.</h2>
-            <p class="lead">The prover claims a value for a sum over the Boolean hypercube:</p>
-          </div>
-          <div class="formula" style="margin:0">\[ C = \sum_{x_1,\ldots,x_\mu \in \{0,1\}} f(x_1,\ldots,x_\mu) \]</div>
-        </div>
-        <div class="flow">
-          <div class="step"><div class="label">1 · Claim</div><p>Start with the claimed total sum.</p></div>
-          <div class="step"><div class="label">2 · Round poly</div><p>Prover sends a univariate polynomial \(s_i(X_i)\).</p></div>
-          <div class="step"><div class="label">3 · Check</div><p>Verifier checks \(s_i(0)+s_i(1)\).</p></div>
-          <div class="step"><div class="label">4 · Challenge</div><p>Verifier samples random \(r_i\).</p></div>
-          <div class="step"><div class="label">5 · Repeat</div><p>Fix one variable and halve the table.</p></div>
+        <h2 style="max-width:22ch">SumCheck shrinks a sum over <span class="accent">2<tspan style="font-size:.6em;vertical-align:super">μ</tspan></span> points into μ small checks.</h2>
+        <div class="diagram" style="margin-top:1.6rem; padding:1.4rem 1.2rem">
+          <svg viewBox="0 0 1040 320" role="img" aria-label="SumCheck table halving">
+            <defs>
+              <marker id="arr4" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7b341e"/></marker>
+            </defs>
+            <text x="120" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" fill="#7b341e" letter-spacing="2">ROUND 1</text>
+            <text x="120" y="60" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">size 8</text>
+            <g>
+              <rect x="60" y="80" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="92" y="80" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="124" y="80" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="156" y="80" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="60" y="112" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="92" y="112" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="124" y="112" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+              <rect x="156" y="112" width="30" height="30" fill="#f7e9c8" stroke="#d6c8aa"/>
+            </g>
+            <text x="120" y="170" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">prover sends</text>
+            <text x="120" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">s₁(X₁)</text>
+            <line x1="200" y1="111" x2="260" y2="111" stroke="#7b341e" stroke-width="2" marker-end="url(#arr4)"/>
+            <text x="230" y="100" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#355c45">fix r₁</text>
+            <text x="350" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" fill="#7b341e" letter-spacing="2">ROUND 2</text>
+            <text x="350" y="60" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">size 4</text>
+            <g>
+              <rect x="306" y="96" width="30" height="30" fill="#eddcae" stroke="#d6c8aa"/>
+              <rect x="338" y="96" width="30" height="30" fill="#eddcae" stroke="#d6c8aa"/>
+              <rect x="306" y="128" width="30" height="30" fill="#eddcae" stroke="#d6c8aa"/>
+              <rect x="338" y="128" width="30" height="30" fill="#eddcae" stroke="#d6c8aa"/>
+            </g>
+            <text x="350" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">s₂(X₂)</text>
+            <line x1="380" y1="111" x2="440" y2="111" stroke="#7b341e" stroke-width="2" marker-end="url(#arr4)"/>
+            <text x="410" y="100" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#355c45">fix r₂</text>
+            <text x="530" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" fill="#7b341e" letter-spacing="2">ROUND 3</text>
+            <text x="530" y="60" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">size 2</text>
+            <g>
+              <rect x="502" y="96" width="30" height="30" fill="#e3cd95" stroke="#d6c8aa"/>
+              <rect x="534" y="96" width="30" height="30" fill="#e3cd95" stroke="#d6c8aa"/>
+            </g>
+            <text x="530" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">s₃(X₃)</text>
+            <line x1="580" y1="111" x2="630" y2="111" stroke="#7b341e" stroke-width="2" marker-end="url(#arr4)"/>
+            <text x="605" y="100" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#355c45">fix r₃</text>
+            <text x="690" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="12" fill="#7b341e" letter-spacing="2">FINAL</text>
+            <text x="690" y="60" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#6b6557">size 1</text>
+            <rect x="675" y="96" width="30" height="30" fill="#d3b76f" stroke="#d6c8aa"/>
+            <text x="690" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">f(r₁,r₂,r₃)</text>
+            <line x1="730" y1="111" x2="790" y2="111" stroke="#355c45" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arr4)"/>
+            <g transform="translate(810, 75)">
+              <rect width="180" height="80" rx="14" fill="#fffaf0" stroke="#355c45" stroke-width="1.5"/>
+              <text x="90" y="32" text-anchor="middle" font-family="Georgia, serif" font-size="16" fill="#355c45">verifier check</text>
+              <text x="90" y="58" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#1f241c">sᵢ(0) + sᵢ(1) = sᵢ₋₁(rᵢ₋₁)</text>
+            </g>
+            <text x="520" y="260" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="16" fill="#6b6557">each round halves the table — μ rounds total, one variable fixed per round</text>
+            <foreignObject x="120" y="280" width="800" height="40">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Georgia,serif; font-size:1.1rem; color:#1f241c; text-align:center;">
+                claimed total: \( C = \sum_{x_1,\ldots,x_\mu \in \{0,1\}} f(x_1,\ldots,x_\mu) \)
+              </div>
+            </foreignObject>
+          </svg>
         </div>
       </div>
     </section>
@@ -421,16 +507,21 @@
       <div class="frame wide">
         <span class="slide-no">05</span>
         <div class="eyebrow">Why this belongs in a hardware design class</div>
-        <div class="two">
-          <div>
-            <h2>Proof generation is the bottleneck.</h2>
-            <p class="lead">The zkPHIRE paper reports that CPU proof generation can take minutes to hours. SumCheck is attractive because it has linear-time prover complexity, but it still performs enormous finite-field workloads.</p>
-          </div>
-          <div class="stack">
-            <div class="card"><div class="num">256</div><p>BN254 scalar-field elements are 256-bit values, so multiply/reduce is expensive.</p></div>
-            <div class="card"><div class="num">d+1</div><p>A degree-\(d\) SumCheck round needs \(d+1\) univariate samples.</p></div>
-            <div class="card"><div class="num">2^\mu</div><p>MLE tables grow with the number of variables, creating memory bandwidth pressure.</p></div>
-          </div>
+        <h2 style="max-width:18ch">Proof generation is the bottleneck.</h2>
+        <div class="diagram" style="margin-top:1.5rem; padding:1.4rem 1.6rem">
+          <svg viewBox="0 0 1040 130" role="img" aria-label="CPU vs accelerator timeline">
+            <text x="20" y="45" font-family="ui-monospace, monospace" font-size="12" fill="#7b341e" letter-spacing="2">CPU</text>
+            <rect x="20" y="55" width="900" height="22" rx="6" fill="#7b341e" opacity=".82"/>
+            <text x="940" y="71" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#7b341e">minutes – hours</text>
+            <text x="20" y="100" font-family="ui-monospace, monospace" font-size="12" fill="#355c45" letter-spacing="2">FPGA / ASIC TARGET</text>
+            <rect x="20" y="110" width="60" height="16" rx="4" fill="#355c45" opacity=".82"/>
+            <text x="92" y="123" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#355c45">orders of magnitude faster</text>
+          </svg>
+        </div>
+        <div class="three" style="margin-top:1.2rem">
+          <div class="card center" style="text-align:center"><div class="num">256</div><p style="margin:.3rem 0 0">bit field elements — wide modular multiplies</p></div>
+          <div class="card center" style="text-align:center"><div class="num">\(d{+}1\)</div><p style="margin:.3rem 0 0">univariate samples per degree-\(d\) round</p></div>
+          <div class="card center" style="text-align:center"><div class="num">\(2^\mu\)</div><p style="margin:.3rem 0 0">MLE table size — heavy memory pressure</p></div>
         </div>
       </div>
     </section>
@@ -468,179 +559,138 @@
     </section>
 
     <section class="slide" id="slide-8" data-title="Our project scope">
-      <div class="frame wide">
+      <div class="frame full">
         <span class="slide-no">08</span>
         <div class="eyebrow">Our implementation target</div>
-        <div class="two">
-          <div>
-            <h2>We implement one SumCheck round as a reusable HLS IP block.</h2>
-            <p class="lead">This keeps the project aligned with the class requirements: a defined accelerator, a host interface, testbench, synthesis data, and reproducible documentation.</p>
-          </div>
-          <div class="card">
-            <h3>Operation implemented</h3>
-            <ul class="clean">
-              <li>Read MLE table pairs \((f_i[2k], f_i[2k+1])\)</li>
-              <li>Extend each pair to sample points \(z=0,\ldots,d\)</li>
-              <li>Multiply all factors in each product term</li>
-              <li>Accumulate \(s(z)=\sum_k P_k(z)\)</li>
-              <li>Update tables with verifier challenge \(r\)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-9" data-title="SumCheck datapath">
-      <div class="frame full">
-        <span class="slide-no">09</span>
-        <div class="eyebrow">Datapath for one product term</div>
-        <h2>Pair → extend → multiply → accumulate → update.</h2>
-        <div class="diagram" style="margin-top:1.5rem">
-          <svg viewBox="0 0 1040 330" role="img" aria-label="SumCheck datapath diagram">
+        <h2 style="max-width:24ch">One SumCheck round as a reusable HLS IP block.</h2>
+        <div class="diagram" style="margin-top:1.5rem; padding:1.4rem 1.2rem">
+          <svg viewBox="0 0 1040 220" role="img" aria-label="One round visual pipeline">
             <defs>
-              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7b341e"/></marker>
+              <marker id="arr8" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7b341e"/></marker>
             </defs>
-            <rect x="24" y="80" width="155" height="170" rx="18" fill="#fffaf0" stroke="#d6c8aa"/>
-            <text x="101" y="125" text-anchor="middle" font-family="Georgia" font-size="24" fill="#1f241c">MLE tables</text>
-            <text x="101" y="164" text-anchor="middle" font-family="monospace" font-size="15" fill="#6b6557">f_i[2k]</text>
-            <text x="101" y="190" text-anchor="middle" font-family="monospace" font-size="15" fill="#6b6557">f_i[2k+1]</text>
-            <line x1="190" y1="165" x2="260" y2="165" stroke="#7b341e" stroke-width="2" marker-end="url(#arrow)"/>
-            <rect x="270" y="80" width="155" height="170" rx="18" fill="#fffaf0" stroke="#d6c8aa"/>
-            <text x="347" y="125" text-anchor="middle" font-family="Georgia" font-size="24" fill="#1f241c">Extension</text>
-            <text x="347" y="164" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">L_i,k(z)</text>
-            <text x="347" y="190" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">z = 0..d</text>
-            <line x1="435" y1="165" x2="505" y2="165" stroke="#7b341e" stroke-width="2" marker-end="url(#arrow)"/>
-            <rect x="515" y="80" width="155" height="170" rx="18" fill="#fffaf0" stroke="#d6c8aa"/>
-            <text x="592" y="125" text-anchor="middle" font-family="Georgia" font-size="24" fill="#1f241c">Product</text>
-            <text x="592" y="164" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">Π_i L_i,k(z)</text>
-            <text x="592" y="190" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">BN254 mod p</text>
-            <line x1="680" y1="165" x2="750" y2="165" stroke="#7b341e" stroke-width="2" marker-end="url(#arrow)"/>
-            <rect x="760" y="80" width="155" height="170" rx="18" fill="#fffaf0" stroke="#d6c8aa"/>
-            <text x="837" y="125" text-anchor="middle" font-family="Georgia" font-size="24" fill="#1f241c">Accumulate</text>
-            <text x="837" y="164" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">s(z)=Σ_k P_k(z)</text>
-            <text x="837" y="190" text-anchor="middle" font-family="monospace" font-size="14" fill="#6b6557">d+1 samples</text>
-            <path d="M347 250 C347 302 837 302 837 250" fill="none" stroke="#355c45" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
-            <text x="592" y="314" text-anchor="middle" font-family="monospace" font-size="14" fill="#355c45">challenge update: f'_i[k] = L_i,k(r)</text>
+            <g>
+              <text x="100" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#7b341e" letter-spacing="2">PAIR</text>
+              <rect x="40" y="50" width="50" height="36" rx="4" fill="#f7e9c8" stroke="#8a6f2a"/>
+              <text x="65" y="72" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#1f241c">f[2k]</text>
+              <rect x="110" y="50" width="60" height="36" rx="4" fill="#f7e9c8" stroke="#8a6f2a"/>
+              <text x="140" y="72" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#1f241c">f[2k+1]</text>
+              <text x="100" y="115" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">read MLE pairs</text>
+            </g>
+            <line x1="180" y1="68" x2="225" y2="68" stroke="#7b341e" stroke-width="2" marker-end="url(#arr8)"/>
+            <g>
+              <text x="305" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#7b341e" letter-spacing="2">EXTEND</text>
+              <rect x="240" y="50" width="130" height="36" rx="4" fill="#fffaf0" stroke="#d6c8aa"/>
+              <text x="305" y="73" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="15" fill="#1f241c">L(z), z = 0…d</text>
+              <text x="305" y="115" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">d+1 sample points</text>
+            </g>
+            <line x1="380" y1="68" x2="425" y2="68" stroke="#7b341e" stroke-width="2" marker-end="url(#arr8)"/>
+            <g>
+              <text x="505" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#7b341e" letter-spacing="2">MULTIPLY</text>
+              <rect x="440" y="50" width="130" height="36" rx="4" fill="#fffaf0" stroke="#d6c8aa"/>
+              <text x="505" y="74" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">∏<tspan font-size="11" baseline-shift="sub">i</tspan> <tspan font-style="italic">L</tspan><tspan font-size="11" baseline-shift="sub">i</tspan>(<tspan font-style="italic">z</tspan>)</text>
+              <text x="505" y="115" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">all factors per term</text>
+            </g>
+            <line x1="580" y1="68" x2="625" y2="68" stroke="#7b341e" stroke-width="2" marker-end="url(#arr8)"/>
+            <g>
+              <text x="705" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#7b341e" letter-spacing="2">ACCUMULATE</text>
+              <rect x="640" y="50" width="130" height="36" rx="4" fill="#fffaf0" stroke="#d6c8aa"/>
+              <text x="705" y="74" text-anchor="middle" font-family="Georgia, serif" font-size="17" fill="#1f241c">s(z) = ∑<tspan font-size="11" baseline-shift="sub">k</tspan> <tspan font-style="italic">P</tspan><tspan font-size="11" baseline-shift="sub">k</tspan>(z)</text>
+              <text x="705" y="115" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">round polynomial</text>
+            </g>
+            <line x1="780" y1="68" x2="825" y2="68" stroke="#7b341e" stroke-width="2" marker-end="url(#arr8)"/>
+            <g>
+              <text x="900" y="30" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#7b341e" letter-spacing="2">UPDATE</text>
+              <rect x="840" y="50" width="120" height="36" rx="4" fill="#eddcae" stroke="#8a6f2a"/>
+              <text x="900" y="73" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="14" fill="#1f241c">f′[k] = L(r)</text>
+              <text x="900" y="115" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#6b6557">halve the table</text>
+            </g>
+            <path d="M900 90 C900 165 305 165 305 90" fill="none" stroke="#355c45" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#arr8)"/>
+            <text x="600" y="178" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="#355c45">verifier challenge r feeds the next round</text>
           </svg>
         </div>
-        <div class="formula">\[ L_{i,k}(z) = f_i[2k] + \big(f_i[2k+1]-f_i[2k]\big)z \quad P_k(z)=\prod_i L_{i,k}(z) \]</div>
+        <div class="two" style="margin-top:1rem">
+          <p>Implemented in HLS as a single round, programmable across degrees \(d\).</p>
+          <p>Reusable as an IP block: clean control interface, golden-model verified.</p>
+        </div>
       </div>
     </section>
 
-    <section class="slide" id="slide-10" data-title="Architecture">
+    <section class="slide" id="slide-9" data-title="Validation model">
+      <div class="frame full">
+        <span class="slide-no">09</span>
+        <div class="eyebrow">Engineering design choice 1: validation-first development</div>
+        <h2>The golden model is the specification.</h2>
+        <p class="lead">Before optimizing hardware structure, we locked down one-round behavior in a bit-exact Python reference model and made every HLS target prove that it matches.</p>
+        <div class="three" style="margin-top:1.8rem">
+          <div class="card">
+            <h3>Reference semantics</h3>
+            <p><span class="mono">golden_sumcheck.py</span> defines BN254 field arithmetic, round polynomial samples, challenge-based table updates, and protocol-chain invariants.</p>
+          </div>
+          <div class="card">
+            <h3>Stable regression cases</h3>
+            <p>We use hand-checkable deterministic examples plus randomized degree-2 through degree-6 checks to catch both math mistakes and indexing mistakes.</p>
+          </div>
+          <div class="card">
+            <h3>Hardware acceptance test</h3>
+            <p>C-simulation is not considered passing unless every <span class="mono">samples[x]</span> value and every <span class="mono">updated[m][k]</span> entry matches the golden output.</p>
+          </div>
+        </div>
+        <div class="formula" style="margin-top:1.7rem">\[ \text{HLS implementation is correct} \iff \forall x,m,k:\; samples_{hls}[x]=samples_{gold}[x] \land updated_{hls}[m,k]=updated_{gold}[m,k] \]</div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-10" data-title="IP interface choice">
       <div class="frame wide">
         <span class="slide-no">10</span>
-        <div class="eyebrow">Hardware architecture</div>
-        <div class="two">
-          <div>
-            <h2>Two targets: small-board baseline and RFSoC parallel design.</h2>
-            <p class="lead">The RFSoC version demonstrates paper-style parallelism with adaptive processing elements, scratchpad banking, and a final reduction tree.</p>
-          </div>
-          <div class="stack">
-            <div class="card"><h3>PYNQ-Z2 baseline</h3><p>Single PE, BRAM and <span class="mono">m_axi</span> interfaces, functionally verified but DSP-constrained.</p></div>
-            <div class="card"><h3>RFSoC 4x2 design</h3><p>8 adaptive PEs, 16 scratchpad banks, per-PE sample vectors, tree reduction, and orchestrator-level table update.</p></div>
-            <div class="card"><h3>Shared kernel</h3><p>Both targets use the same SumCheck semantics and golden reference.</p></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-11" data-title="Interface">
-      <div class="frame full">
-        <span class="slide-no">11</span>
-        <div class="eyebrow">Host/IP interface</div>
-        <h2>Clean contract: configure, start, poll, read outputs.</h2>
+        <div class="eyebrow">Engineering design choice 2: IP interface contract</div>
+        <h2>We kept control scalar and moved field tables through memory.</h2>
+        <p class="lead">The SumCheck round has tiny configuration state but large 256-bit table buffers, so the interface separates AXI-Lite control from bulk memory movement.</p>
         <div class="two" style="margin-top:1.5rem">
           <div class="card">
-            <h3>AXI-Lite control</h3>
+            <h3>AXI-Lite for control</h3>
             <table>
-              <tr><th>Field</th><th>Meaning</th></tr>
-              <tr><td class="mono">degree</td><td>Number of MLE factors; emits \(degree+1\) samples.</td></tr>
-              <tr><td class="mono">size</td><td>Power-of-two table length before this round.</td></tr>
-              <tr><td class="mono">r</td><td>Verifier challenge, \(0 \le r < p\).</td></tr>
-              <tr><td class="mono">return</td><td>Status: OK or invalid input code.</td></tr>
+              <tr><th>Field</th><th>Why it is scalar</th></tr>
+              <tr><td class="mono">degree</td><td>Sets number of MLE factors and \(d+1\) samples.</td></tr>
+              <tr><td class="mono">size</td><td>Current power-of-two table length.</td></tr>
+              <tr><td class="mono">r</td><td>Verifier challenge for next-table update.</td></tr>
+              <tr><td class="mono">return</td><td>Status code for bad degree, size, or challenge.</td></tr>
             </table>
           </div>
+          <div class="stack">
+            <div class="card"><h3>BRAM array top</h3><p><span class="mono">sumcheck_round_array</span> gives a simple, structured C-simulation interface: <span class="mono">tables[m][i]</span>, <span class="mono">samples[x]</span>, and <span class="mono">updated[m][k]</span>.</p></div>
+            <div class="card"><h3><span class="mono">m_axi</span> DMA top</h3><p><span class="mono">sumcheck_round_axi</span> flattens buffers for host integration: inputs at <span class="mono">m*size+i</span>, outputs at <span class="mono">x</span> and <span class="mono">m*(size/2)+k</span>.</p></div>
+            <div class="card"><h3>Why this choice</h3><p>It matches how a host would launch reusable IP: configure once, stream or DMA table buffers, then poll status and read deterministic outputs.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-11" data-title="Testbench choices">
+      <div class="frame wide">
+        <span class="slide-no">11</span>
+        <div class="eyebrow">Engineering design choice 3: self-checking testbenches</div>
+        <h2>Our testbenches check behavior, not just completion.</h2>
+        <p class="lead">The HLS testbench is intentionally deterministic and element-wise, so failures point to the exact sample or updated-table entry that diverged from the golden model.</p>
+        <div class="three" style="margin-top:1.7rem">
           <div class="card">
-            <h3>Memory movement</h3>
-            <ul class="clean">
-              <li><span class="mono">tables[m][i]</span>: input MLE tables</li>
-              <li><span class="mono">samples[x]</span>: output round polynomial samples</li>
-              <li><span class="mono">updated[m][k]</span>: next-round halved tables</li>
-              <li><span class="mono">m_axi</span> variant uses flat host buffers for DMA-style integration</li>
-            </ul>
+            <h3>Hand-checkable cases</h3>
+            <p>Case A uses \(x_1x_2x_3\) with challenge chain \((5,7,11)\), including edge checks for \(r=0\) and \(r=1\).</p>
+          </div>
+          <div class="card">
+            <h3>Composition coverage</h3>
+            <p>Case B tests individual terms \(x_1x_2\) and \(x_2x_3\), then verifies the combined polynomial \(x_1x_2+x_2x_3\).</p>
+          </div>
+          <div class="card">
+            <h3>Element-wise assertions</h3>
+            <p>Each run compares every round sample and every next-table cell; a passing run means the full observable IP contract matched.</p>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-12" data-title="Verification">
-      <div class="frame wide">
-        <span class="slide-no">12</span>
-        <div class="eyebrow">Verification strategy</div>
-        <div class="two">
-          <div>
-            <h2>We validate against a bit-exact Python golden model.</h2>
-            <p class="lead">The testbench compares every emitted sample and every updated table entry, not just a pass/fail checksum.</p>
-          </div>
-          <div class="stack">
-            <div class="card"><div class="num">84+</div><p>Python golden-model randomized and deterministic regression checks.</p></div>
-            <div class="card"><div class="num">7/7</div><p>PYNQ-Z2 C-simulation cases passed.</p></div>
-            <div class="card"><div class="num">7/7</div><p>RFSoC 4x2 C-simulation cases passed.</p></div>
-          </div>
+        <div class="flow" style="margin-top:1.4rem">
+          <div class="step"><div class="label">1 · Load vector</div><p>Populate 256-bit MLE tables with deterministic fixtures.</p></div>
+          <div class="step"><div class="label">2 · Run IP</div><p>Call the same top-level function used for synthesis.</p></div>
+          <div class="step"><div class="label">3 · Compare</div><p>Check <span class="mono">samples</span> and <span class="mono">updated</span> against expected golden values.</p></div>
+          <div class="step"><div class="label">4 · Report</div><p>Emit named PASS/FAIL cases; current suite reports 7/7 pass on both targets.</p></div>
         </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-13" data-title="Synthesis results">
-      <div class="frame full">
-        <span class="slide-no">13</span>
-        <div class="eyebrow">Synthesis evidence from Vitis HLS 2023.2</div>
-        <h2>Functional success, with honest FPGA resource tradeoffs.</h2>
-        <table>
-          <thead><tr><th>Target</th><th>Fmax</th><th>BRAM</th><th>DSP</th><th>FF</th><th>LUT</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr><td>PYNQ-Z2 BRAM top</td><td>139.96 MHz</td><td>60/280 · 21%</td><td class="warn">233/220 · 105%</td><td>62%</td><td>39%</td><td><span class="ok">C-sim pass</span></td></tr>
-            <tr><td>PYNQ-Z2 m_axi top</td><td>135.21 MHz</td><td>240/280 · 85%</td><td class="warn">240/220 · 109%</td><td>70%</td><td>50%</td><td><span class="ok">IP export</span></td></tr>
-            <tr><td>RFSoC 4x2 8-PE top</td><td class="warn">165.70 MHz</td><td>154/2160 · 7%</td><td>466/4272 · 10%</td><td>30%</td><td>55%</td><td><span class="ok">C-sim pass</span></td></tr>
-            <tr><td>RFSoC exported IP</td><td class="warn">165.70 MHz</td><td>154/2160 · 7%</td><td>466/4272 · 10%</td><td>30%</td><td>55%</td><td><span class="ok">IP export</span></td></tr>
-          </tbody>
-        </table>
-        <p class="small">RFSoC latency from report: 25,718,637 cycles ≈ 155 ms at estimated period.</p>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-14" data-title="Lessons">
-      <div class="frame wide">
-        <span class="slide-no">14</span>
-        <div class="eyebrow">What we learned</div>
-        <div class="two">
-          <div>
-            <h2>The hard part is not just math. It is mapping irregular math to regular hardware.</h2>
-            <div class="quote">SumCheck is simple to write as equations and subtle to schedule as hardware.</div>
-          </div>
-          <div class="stack">
-            <div class="card"><h3>Arithmetic dominates</h3><p>Naive 256-bit modular reduction quickly consumes DSP budget on small FPGAs.</p></div>
-            <div class="card"><h3>Memory structure matters</h3><p>Banking and scratchpad placement determine whether PEs can stay busy.</p></div>
-            <div class="card"><h3>Control placement matters</h3><p>Updating tables once at the orchestrator avoids per-PE overwrite bugs.</p></div>
-            <div class="card"><h3>Verification needs granularity</h3><p>Checking every sample and updated table entry made debugging tractable.</p></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="slide" id="slide-15" data-title="Conclusion">
-      <div class="frame center wide">
-        <span class="slide-no">15</span>
-        <div class="eyebrow">Conclusion</div>
-        <h2 style="max-width:15ch">A working accelerator slice for a real ZKP bottleneck.</h2>
-        <p class="lead">We built and verified a programmable SumCheck-round IP block inspired by zkPHIRE, with a clean host interface, golden-model validation, HLS synthesis reports, and both PYNQ and RFSoC implementations.</p>
-        <div class="three" style="margin-top:2rem; text-align:left">
-          <div class="card"><h3>Correct</h3><p>Bit-exact against Python reference; 7/7 C-sim pass on both targets.</p></div>
-          <div class="card"><h3>Integrated</h3><p>BRAM and <span class="mono">m_axi</span> interfaces; IP export artifacts recorded.</p></div>
-          <div class="card"><h3>Honest</h3><p>RFSoC resources fit; PYNQ DSP and RFSoC clock are documented limitations.</p></div>
-        </div>
-        <p class="small" style="margin-top:2rem">Repository: <span class="mono">SammySuliman/zkPHIRE-A-Programmable-Accelerator-for-ZKPs</span></p>
       </div>
     </section>
   </main>
