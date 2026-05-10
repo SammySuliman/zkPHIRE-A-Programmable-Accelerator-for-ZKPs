@@ -1,6 +1,6 @@
 # zkPHIRE SumCheck Accelerator
 
-**Repository**: `SammySuliman/zkPHIRE-A-Programmable-Accelerator-for-ZKPs` (branch: `ashesh`)  
+**Repository**: `SammySuliman/zkPHIRE-A-Programmable-Accelerator-for-ZKPs` (branch: `main`)  
 **Team**: Sammy Suliman, Jui-Teng Huang, Ashesh Kaji  
 **Paper**: *zkPHIRE: A Programmable Accelerator for ZKPs over High-Degree, Expressive Gates*
 
