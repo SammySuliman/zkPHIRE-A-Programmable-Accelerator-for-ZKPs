@@ -254,7 +254,7 @@ All commands run on the NYU ECE server (`ecs02.poly.edu`) after connecting via N
 # Clone and checkout
 cd ~
 git clone https://github.com/SammySuliman/zkPHIRE-A-Programmable-Accelerator-for-ZKPs.git zkphire
-cd zkphire && git checkout ashesh
+cd zkphire && git checkout main
 
 # PYNQ-Z2 — C-sim + synthesis + IP export
 cd hls
